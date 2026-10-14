@@ -146,7 +146,7 @@ Ui.Panel {
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
-                    text: "WORLD 1-1"
+                    text: "WORLD " + root.hud.world
                     color: Art.C.white
                     font.family: "DejaVu Sans Mono"
                     font.pixelSize: 14

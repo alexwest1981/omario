@@ -35,7 +35,8 @@ function until(s, cond, input, maxSeconds = 6) {
   while (t < maxSeconds && !cond(s)) { Mario.step(s, DT, input); t += DT }
   return t
 }
-function fresh() { return Mario.newGame() }
+// A game past Toad's title screen (the title is checked on its own below).
+function fresh() { const s = Mario.newGame(); s.status = "play"; return s }
 // Movement tests want a clear stretch of road, not a goomba in the way.
 function quiet(s) { s.ents.forEach((e) => { e.active = false }); return s }
 function place(s, col, rowTop) {
@@ -358,24 +359,35 @@ check("pixel art: every frame is the right size and fits its sprite slots", () =
   for (const key of frames) {
     const art = MarioArt.FRAMES[key]
     assert.ok(art.length > 0, key + " is empty")
-    const group = key.startsWith("mb") ? "mario" : key.startsWith("ms") ? "mario"
+    const CHAR = { toad: 1, princess: 1, bowser: 1 }      // and their F mirrors
+    const group = CHAR[key.replace(/F$/, "")] ? "char" : key.startsWith("mb") || key.startsWith("ms") ? "mario"
       : key.startsWith("g") ? "goomba" : "item"
     assert.ok(art.length <= MarioArt.SLOT_COUNT[group],
       key + " needs " + art.length + " rects but the " + group + " sprite has " + MarioArt.SLOT_COUNT[group])
+    // mario, goombas and items live in a 16px box; the characters are drawn wider
+    const boxW = group === "char" ? 32 : 16
     for (const r of art) {
-      assert.ok(r[0] >= 0 && r[0] + r[2] <= 16, key + " rect leaves the 16px box: " + r.join(","))
+      assert.ok(r[0] >= 0 && r[0] + r[2] <= boxW, key + " rect leaves the " + boxW + "px box: " + r.join(","))
       assert.ok(r[1] >= 0 && r[1] + r[3] <= 32, key + " rect leaves the sprite: " + r.join(","))
       assert.ok(typeof r[4] === "string" && r[4].charAt(0) === "#", key + " rect has no colour")
     }
   }
   // the maps are hand written: every row must be exactly 16 characters
   const maps = Object.assign({}, MarioArt.MARIO_SMALL, MarioArt.MARIO_BIG, MarioArt.GOOMBA,
-                              { mushroom: MarioArt.MUSHROOM })
+                              { mushroom: MarioArt.MUSHROOM, axe: MarioArt.AXE, toad: MarioArt.TOAD,
+                                princess: MarioArt.PRINCESS, bowser: MarioArt.BOWSER })
   for (const [name, rows] of Object.entries(maps)) {
-    for (const row of rows) assert.equal(row.length, 16, name + " has a row of " + row.length + " chars: " + row)
+    const w = rows[0].length
+    for (const row of rows) assert.equal(row.length, w, name + " has a row of " + row.length + " chars: " + row)
   }
   assert.equal(MarioArt.MARIO_SMALL.stand.length, 16)
   assert.equal(MarioArt.MARIO_BIG.stand.length, 32)
+  assert.equal(MarioArt.BOWSER[0].length, 24)
+  // the characters' feet sit on the row the story screens place them by
+  for (const [key, floor] of [["toad", 21], ["princess", 21], ["bowser", 23]]) {
+    const low = MarioArt.FRAMES[key].reduce((a, r) => Math.max(a, r[1]), 0)
+    assert.equal(low, floor, key + " feet at row " + low + ", expected " + floor)
+  }
 
   // the feet of every mario frame must sit on the hit box floor
   for (const [key, floor] of [["msStand", 15], ["msWalk1", 15], ["msWalk2", 15], ["msJump", 15],
@@ -394,6 +406,100 @@ check("pixel art: mario picks a different frame for walk, jump and facing", () =
   assert.equal(MarioArt.mario(Object.assign({}, base, { vx: 90, anim: 0.13 })), MarioArt.FRAMES.msWalk1)
   assert.equal(MarioArt.mario(Object.assign({}, base, { facing: -1 })), MarioArt.FRAMES.msStandF)
   assert.equal(MarioArt.mario(Object.assign({}, base, { big: true })), MarioArt.FRAMES.mbStand)
+})
+
+// ── courses ─────────────────────────────────────────────────────────────────
+
+check("four courses in order, each with its own world label", () => {
+  assert.equal(Mario.LEVELS.length, 4)
+  assert.deepEqual(Mario.LEVELS.map((f) => f().world), ["1-1", "1-2", "1-3", "1-4"])
+  const s = fresh()
+  assert.equal(Mario.hud(s).world, "1-1")
+  Mario.startLevel(s, 3)
+  assert.equal(Mario.hud(s).world, "1-4")
+  assert.ok(s.def.castle, "the last course is the castle")
+})
+
+check("Toad's line holds the game until jump", () => {
+  const s = Mario.newGame()
+  assert.equal(s.status, "title", "a new game opens on the story screen")
+  assert.ok(Mario.hud(s).msg.length > 0, "the story screen has something to say")
+  run(s, 1, IN())                                  // ingenting händer utan hopp
+  assert.equal(s.status, "title")
+  assert.equal(Math.round(s.mario.x), 3 * Mario.TILE)
+  run(s, 0.1, IN({ jump: true }))
+  assert.equal(s.status, "play", "jump starts the game")
+})
+
+check("the flagpole hands over to the next course", () => {
+  const s = quiet(fresh())
+  place(s, s.def.flag, 12)
+  until(s, (g) => g.status === "clear", IN({ right: true }), 3)
+  assert.equal(s.status, "clear")
+  assert.ok(s.score >= 1000, "clearing pays out")
+  run(s, Mario.T.clearTime + 0.2, IN())             // clear-animationen
+  assert.equal(s.def.world, "1-2", "the next course takes over")
+  assert.equal(s.status, "play")
+  assert.equal(Mario.hud(s).lives, 3, "lives carry over")
+})
+
+check("the axe on the castle course ends the game", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 3)
+  assert.ok(s.bowser, "the castle has Bowser on the bridge")
+  assert.ok(s.def.axe[0] * TILE > s.bowser.maxX, "the axe sits past his patrol")
+  place(s, s.def.axe[0], 12)
+  until(s, (g) => g.status === "won", IN(), 2)
+  assert.equal(s.status, "won", "the axe wins the game")
+  assert.equal(s.bowser, null, "and Bowser is gone")
+})
+
+check("bowser is not stompable", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 3)
+  const b = s.bowser
+  place(s, Math.floor(b.x / TILE), 11)              // rakt över honom
+  s.mario.vy = 200                                  // på väg ner, som ett stamp
+  until(s, (g) => g.status !== "play", IN(), 2)
+  assert.equal(s.status, "dying", "landing on Bowser costs a life")
+})
+
+check("every course can be walked to the end", () => {
+  // En enkel bot: håll höger, hoppa vid vägg, hål, fiende och Bowser. Fienderna
+  // är avstängda — det här mäter banornas geometri (hål, avsatser, slottet,
+  // yxan och att banbyte och slut hänger ihop), inte fiendekollisionerna, som
+  // har egna prov ovan.
+  const s = Mario.newGame()
+  const GR = Mario.GROUND_ROW
+  const bot = (g) => {
+    const in_ = Mario.input()
+    if (g.status === "title") { in_.jump = true; return in_ }
+    const m = g.mario
+    const col = Math.floor((m.x + m.w) / TILE), row = Math.floor((m.y + m.h - 1) / TILE)
+    in_.right = true
+    const golv = (c) => { for (let y = row; y <= GR; y++) if (Mario.solidAt(g.grid, c, y)) return true; return false }
+    in_.run = golv(col + 2) && golv(col + 3)
+    if (!m.onGround) { in_.jump = m.vy < 0; return in_ }
+    let want = false
+    for (const d of [1, 2]) for (const dy of [0, -1]) if (Mario.solidAt(g.grid, col + d, row + dy)) want = true
+    if (!golv(col + 1) || !golv(col + 2)) want = true
+    for (const e of g.ents) if (e.active && e.x > m.x && e.x - m.x < 46 && Math.abs(e.y - m.y) < 40) want = true
+    if (g.bowser && g.bowser.x > m.x && g.bowser.x - m.x < 120) in_.run = true
+    if (g.bowser && g.bowser.x > m.x && g.bowser.x - m.x < 90) want = true
+    in_.jump = want
+    return in_
+  }
+  let t = 0
+  const sedda = []
+  while (t < 400 && s.status !== "won" && s.status !== "gameover") {
+    for (const e of s.ents) e.active = false
+    if (sedda[sedda.length - 1] !== s.def.world) sedda.push(s.def.world)
+    Mario.step(s, DT, bot(s))
+    t += DT
+  }
+  assert.deepEqual(sedda, ["1-1", "1-2", "1-3", "1-4"], "courses visited in order")
+  assert.equal(s.status, "won", "the run ended as " + s.status + " on course " + s.def.world)
+  assert.ok(t < 200, "the run took " + t.toFixed(1) + "s of game time")
 })
 
 console.log("\n" + passed + " checks passed")

@@ -31,7 +31,8 @@ var C = {
 
 var PAL = {
   R: C.red, S: C.skin, N: C.brown, K: C.dark, B: C.blue,
-  Y: C.yellow, W: C.white, T: C.cream, G: C.green, O: C.gold
+  Y: C.yellow, W: C.white, T: C.cream, G: C.green, O: C.gold,
+  P: "#f8a0c0", D: C.dkgreen, L: C.ltgreen, A: C.brickdark
 }
 
 var WIDTH = 16
@@ -62,11 +63,14 @@ function pixels(rows, floorRow) {
   return out
 }
 
-function mirror(art) {
+// Mirrored frame, inside `width` (the sprite's own box: the 16 px maps and the
+// wider characters both get their mirror from here).
+function mirror(art, width) {
+  var w = width || WIDTH
   var out = []
   for (var i = 0; i < art.length; i++) {
     var r = art[i]
-    out.push([WIDTH - r[0] - r[2], r[1], r[2], r[3], r[4]])
+    out.push([w - r[0] - r[2], r[1], r[2], r[3], r[4]])
   }
   return out
 }
@@ -335,14 +339,135 @@ var MUSHROOM = [
   "................"
 ]
 
+// --------------------------------------------------------------- bosses ------
+// Bowser guards the bridge on the castle course. 24 wide, feet on row 23: green
+// body, cream belly, red hair, spiked shell. He is never stompable, so the only
+// way past him is over or around — the axe beyond him is what ends the game.
+var BOWSER = [
+  "........................",
+  "........RRRRRR..........",
+  ".......RRRRRRRR.........",
+  "......RRWWWWWWRR........",
+  "......RKWWKKWWKR........",
+  "......RKWWKKWWKR........",
+  "......RRWWWWWWRR........",
+  ".......RWWWWWWR.........",
+  "....GGGGWWWWWWGGGG......",
+  "...GGGGGGGGGGGGGGGGG....",
+  "..GGDDGWGGGGWGGGWDDGG...",
+  "..GDDDWGGGGGGGGGWDDDG...",
+  "..GDDDDGWGGWGGWDDDDG....",
+  "...GGGGGYYYYYYGGGGG.....",
+  "....GGGYYTTTTYYGGG......",
+  "....GGYYTTTTTTYYGG......",
+  "....GGYYTTTTTTYYGG......",
+  "....GGGYYTTTTYYGGG......",
+  ".....GGYYYYYYGGGG.......",
+  ".....GGGGGGGGGGG........",
+  "....GGGG....GGGG........",
+  "....GDDG....GDDG........",
+  "....GDDG....GDDG........",
+  "...GGGGGG..GGGGGG......."
+]
+
+// The axe on the last pillar: touching it cuts the bridge and ends the game.
+var AXE = [
+  "................",
+  "................",
+  "....KKKKKKK.....",
+  "...KWWWWWWWK....",
+  "..KWWWWWWWWWK...",
+  "..KWKKKKKKKWK...",
+  "..KKWWWWWWWKK...",
+  "...KKKKKKKKK....",
+  "......NNN.......",
+  "......NNN.......",
+  "......NNN.......",
+  "......NNN.......",
+  "......NNN.......",
+  "....NNNNNNN.....",
+  "....NNNNNNN.....",
+  "................"
+]
+
+// Toad and the princess, for the two story screens.
+var TOAD = [
+  "................",
+  "....WWWWWWWW....",
+  "...WWWWWWWWWW...",
+  "..WWWWWWWWWWWW..",
+  "..WWRRWWWWRRWW..",
+  "..WWRRWWWWRRWW..",
+  "..WWWWWWWWWWWW..",
+  "..WWWWWWWWWWWW..",
+  "..WWWKKWWKKWWW..",
+  "..WWWWWWWWWWWW..",
+  "...WWWWWWWWWW...",
+  "....BBBBBBBB....",
+  "...BBBBBBBBBB...",
+  "..BBBBWWWWBBBB..",
+  "..BBBBWWWWBBBB..",
+  "..BBBBWWWWBBBB..",
+  "..BBBBWWWWBBBB..",
+  "...BBBBBBBBBB...",
+  "...BBBBBBBBBB...",
+  "....BB....BB....",
+  "....BB....BB....",
+  "...TTTT..TTTT...",
+  "...TTTT..TTTT...",
+  "................"
+]
+
+var PRINCESS = [
+  "................",
+  ".....YYYYYY.....",
+  "....YYYYYYYY....",
+  "...YY.WWWW.YY...",
+  "...YYWWWWWWYY...",
+  "...YYWKKWWKKW...",
+  "...YYWWWWWWWW...",
+  "...YYYWWWWWWY...",
+  "....YYWWWWYY....",
+  ".....WWWWWW.....",
+  "....PPPPPPPP....",
+  "...PPPWWWWPPP...",
+  "..PPPWWWWWWPPP..",
+  "..PPWWWWWWWWPP..",
+  ".PPPWWWWWWWWPPP.",
+  ".PPPWWWWWWWWPPP.",
+  ".PPPPWWWWWWPPPP.",
+  "PPPPPPPPPPPPPPPP",
+  "PPPPPPPPPPPPPPPP",
+  "PPPPPPPPPPPPPPPP",
+  "PPPPPPPPPPPPPPPP",
+  "PPPPPPPPPPPPPPPP",
+  "PPPPPPPPPPPPPPPP",
+  "................"
+]
+
+// ------------------------------------------------------- castle dressing -----
+
+function lava() {
+  return [[0, 0, 16, 16, C.red], [0, 0, 16, 3, C.yellow],
+          [2, 4, 12, 12, "#d85818"], [0, 12, 16, 4, "#b03000"],
+          [5, 6, 3, 3, C.yellow], [11, 9, 2, 2, C.yellow]]
+}
+
+function pillar() {
+  // two tiles tall, so a row-11 pillar stands on the row-13 floor instead of
+  // floating: base, shaft with a lit edge, and a capital at the top
+  return [[2, 4, 12, 28, "#4c4c58"], [2, 4, 3, 28, "#6c6c78"], [12, 4, 2, 28, "#34343c"],
+          [0, 0, 16, 4, "#5c5c68"], [0, 0, 16, 1, "#7c7c88"], [1, 30, 14, 2, "#34343c"]]
+}
+
 // Precompute every frame once (and its mirror), so drawing never allocates.
 var FRAMES = {}
-var SLOTS = { mario: 0, goomba: 0, item: 0 }
+var SLOTS = { mario: 0, goomba: 0, item: 0, char: 0 }
 
 function add(key, group, rows, floorRow) {
   var art = pixels(rows, floorRow)
   FRAMES[key] = art
-  FRAMES[key + "F"] = mirror(art)
+  FRAMES[key + "F"] = mirror(art, rows[0] ? rows[0].length : WIDTH)
   if (art.length > SLOTS[group]) SLOTS[group] = art.length
   return art
 }
@@ -359,6 +484,7 @@ function buildFrames() {
   add("gWalk2", "goomba", GOOMBA.walk2)
   add("gSquash", "goomba", GOOMBA.squashed)
   add("mushroom", "item", MUSHROOM)
+  add("axe", "item", AXE)
   add("coin0", "item", ["................", "......YYYY......", ".....YYYYYY.....", "....YYOOOOYY....",
                         "....YYOOOOYY....", "....YYOOOOYY....", "....YYOOOOYY....", "....YYOOOOYY....",
                         "....YYOOOOYY....", "....YYOOOOYY....", "....YYOOOOYY....", ".....YYYYYY.....",
@@ -367,6 +493,9 @@ function buildFrames() {
                         ".......OO.......", ".......OO.......", ".......OO.......", ".......OO.......",
                         ".......OO.......", ".......OO.......", ".......OO.......", "......YYYY......",
                         ".......YY.......", "................", "................", "................"])
+  add("toad", "char", TOAD, 21)
+  add("princess", "char", PRINCESS, 21)
+  add("bowser", "char", BOWSER, 23)      // add() makes the mirrored frame too
 }
 buildFrames()
 
@@ -393,7 +522,19 @@ function goomba(e) {
   return Math.floor((e.phase || 0) * 6) % 2 ? FRAMES.gWalk2 : FRAMES.gWalk1
 }
 
+function bowser(b) {
+  // two-frame sway so he is not a statue
+  return Math.floor((b.phase || 0) * 4) % 2 ? FRAMES.bowser : FRAMES.bowserF
+}
+
+// Toad and the princess are drawn facing right; the story screens use them
+// straight on, so ask for the un-mirrored frame by name.
+function char(name) {
+  return FRAMES[name]
+}
+
 function item(it) {
+  if (it.type === "axe") return FRAMES.axe
   if (it.type === "mushroom") return FRAMES.mushroom
   return Math.floor((it.phase || 0) * 4) % 2 ? FRAMES.coin1 : FRAMES.coin0
 }

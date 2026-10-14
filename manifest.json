@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.alexwest1981.omario",
   "name": "OmaRio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Alex",
   "license": "MIT",
-  "description": "A Super Mario Bros style platformer you can play straight from the bar: run, jump, stomp goombas, break bricks and reach the flagpole.",
+  "description": "A Super Mario Bros style platformer you can play straight from the bar: four courses, a castle, Bowser and the axe.",
   "tags": [
     "game",
     "games",
@@ -21,7 +21,7 @@
   },
   "barWidget": {
     "displayName": "OmaRio",
-    "description": "Play a Super Mario Bros style level from the bar",
+    "description": "Play a Super Mario Bros style platformer from the bar: four courses and a castle",
     "category": "Games",
     "allowMultiple": false,
     "defaultSection": "right"

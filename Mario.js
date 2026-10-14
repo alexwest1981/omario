@@ -14,6 +14,11 @@ var START_LIVES = 3
 var START_TIME = 400
 var FLAG_TILE = 198
 
+// Toad's two lines, as in the original: the story before the first course and
+// the ending after the last one.
+var TITLE_MSG = "THE PRINCESS IS IN ANOTHER CASTLE!"
+var WON_MSG = "THANK YOU MARIO!"
+
 var T = {
   accel: 480,       // px/s^2 on the ground
   brake: 1200,      // px/s^2 when turning around
@@ -29,6 +34,7 @@ var T = {
   squashTime: 0.45,
   mushroomSpeed: 62,
   invuln: 1.6,
+  clearTime: 3.0,        // flagpole animation before the next course
   timeRate: 2.5,    // SMB time units per second
   dt: 1 / 120,      // fixed physics substep
   deathTime: 2.2
@@ -38,6 +44,7 @@ var T = {
 
 function level1() {
   return {
+    world: "1-1",
     width: 212,
     // ground runs [first, last] column; the gaps between them are pits
     ground: [[0, 68], [71, 85], [89, 152], [155, 211]],
@@ -77,6 +84,159 @@ function level1() {
     ]
   }
 }
+
+// --------------------------------------------------------------- worlds ------
+// Four courses in the spirit of world 1: 1-1 is the original, 1-2 is a pipe
+// maze with corridors of bricks, 1-3 is the athletic one (floating platforms,
+// little ground) and 1-4 is the castle: a bridge over lava, Bowser on it, and
+// the axe beyond him. Same vocabulary as level1() — a course is data, and the
+// numbering comes from the list at the bottom, not from the function names.
+
+function level2() {
+  return {
+    world: "1-2",
+    width: 196,
+    ground: [[0, 30], [33, 58], [61, 96], [99, 140], [143, 195]],
+    pipes: [[12, 2], [24, 3], [40, 2], [52, 4], [68, 3], [80, 2], [104, 3], [126, 4], [150, 2], [170, 3]],
+    blocks: [
+      [6, 9, "?"],
+      [16, 9, "B"], [17, 9, "?"], [18, 9, "B"],
+      [16, 5, "B"], [17, 5, "B"], [18, 5, "M"], [19, 5, "B"],
+      [44, 9, "?"], [45, 9, "B"], [46, 9, "?"],
+      [44, 5, "B"], [45, 5, "b"], [46, 5, "B"],
+      [72, 9, "B"], [73, 9, "?"], [74, 9, "B"], [75, 9, "?"], [76, 9, "B"],
+      [72, 5, "?"],
+      [90, 9, "b"], [91, 9, "b"],
+      [108, 5, "B"], [109, 5, "?"], [110, 5, "B"],
+      [118, 9, "?"], [119, 9, "B"], [120, 9, "M"],
+      [132, 5, "B"], [133, 5, "?"], [134, 5, "B"],
+      [156, 9, "?"], [157, 9, "B"], [158, 9, "?"], [159, 9, "B"],
+      [176, 9, "b"], [177, 9, "b"]
+    ],
+    stairs: [[26, 3, -1], [86, 4, 1], [180, 5, 1]],
+    goombas: [8, 20, 21, 36, 47, 48, 62, 63, 88, 92, 106, 122, 123, 136, 137, 146, 162, 163, 186],
+    coins: [[4, 6], [5, 6], [34, 8], [35, 8], [36, 8], [50, 6], [66, 6], [67, 6],
+            [84, 6], [85, 6], [102, 8], [103, 8], [116, 6], [117, 6], [130, 6],
+            [144, 8], [145, 8], [168, 6], [169, 6], [184, 6], [185, 6]],
+    flag: 190,
+    decor: [
+      [2, 12, "bush"], [18, 12, "hill"], [36, 12, "bush"], [56, 11, "hillBig"],
+      [78, 12, "bush"], [94, 12, "hill"], [112, 12, "bush"], [128, 11, "hillBig"],
+      [148, 12, "bush"], [166, 12, "hill"], [182, 12, "bush"],
+      [6, 1, "cloud"], [22, 2, "cloud"], [42, 1, "cloud"], [64, 2, "cloud"],
+      [86, 1, "cloud"], [108, 2, "cloud"], [130, 1, "cloud"], [152, 2, "cloud"],
+      [174, 1, "cloud"],
+      [188, 9, "castle"]
+    ]
+  }
+}
+
+function level3() {
+  // The athletic one: ground islands with gaps between them, brick platforms
+  // over and beside the gaps for the coins. Every platform is within one jump
+  // of the last — the bot in tests/mario.test.js walks it on every run, so a
+  // course that cannot be finished fails the suite.
+  return {
+    world: "1-3",
+    width: 178,
+    ground: [[0, 24], [28, 36], [40, 48], [52, 60], [64, 72], [76, 86], [92, 100],
+             [104, 112], [116, 124], [128, 136], [140, 148], [152, 164], [170, 177]],
+    pipes: [[8, 2], [14, 3], [144, 2]],
+    blocks: [
+      [6, 9, "?"],
+      [18, 9, "B"], [19, 9, "?"], [20, 9, "B"],
+      [25, 10, "B"], [26, 10, "B"], [27, 10, "B"],
+      [37, 10, "B"], [38, 10, "?"], [39, 10, "B"],
+      [44, 8, "B"], [45, 8, "M"],
+      [50, 10, "B"], [51, 10, "B"],
+      [56, 6, "?"], [57, 6, "B"],
+      [62, 10, "B"], [63, 10, "B"],
+      [68, 6, "B"], [69, 6, "?"], [70, 6, "B"],
+      [73, 10, "B"], [74, 10, "B"], [75, 10, "B"],
+      [80, 9, "?"], [81, 9, "B"], [82, 9, "?"],
+      [88, 10, "B"], [89, 10, "B"], [90, 10, "B"], [91, 10, "B"],
+      [96, 6, "B"], [97, 6, "M"], [98, 6, "B"],
+      [102, 10, "B"], [103, 10, "B"],
+      [108, 9, "?"], [109, 9, "B"],
+      [114, 10, "B"], [115, 10, "B"],
+      [120, 8, "B"], [121, 8, "?"], [122, 8, "B"],
+      [126, 10, "B"], [127, 10, "B"],
+      [132, 6, "B"], [133, 6, "?"], [134, 6, "B"],
+      [137, 10, "B"], [138, 10, "B"], [139, 10, "B"],
+      [153, 9, "?"], [154, 9, "B"], [155, 9, "?"],
+      [160, 10, "B"], [161, 10, "B"], [162, 10, "B"],
+      [166, 9, "B"], [167, 9, "?"]
+    ],
+    stairs: [[10, 3, 1], [30, 3, -1], [168, 4, 1]],
+    goombas: [20, 31, 44, 57, 68, 81, 96, 109, 121, 133, 146, 158, 174],
+    coins: [[4, 6], [5, 6], [16, 6], [22, 5], [23, 5], [35, 7], [46, 6], [47, 6],
+            [58, 7], [59, 7], [70, 7], [71, 7], [83, 7], [84, 7], [94, 5], [95, 5],
+            [106, 7], [107, 7], [118, 6], [119, 6], [130, 5], [131, 5], [142, 6],
+            [143, 6], [150, 7], [151, 7], [157, 6], [158, 6], [164, 7], [165, 7]],
+    flag: 172,
+    decor: [
+      [4, 12, "hill"], [16, 12, "bush"], [42, 12, "hillBig"], [66, 12, "bush"],
+      [96, 12, "hill"], [120, 12, "bush"], [142, 12, "hillBig"], [160, 12, "bush"],
+      [2, 1, "cloud"], [14, 2, "cloud"], [28, 1, "cloud"], [44, 2, "cloud"],
+      [58, 1, "cloud"], [74, 2, "cloud"], [88, 1, "cloud"], [104, 2, "cloud"],
+      [118, 1, "cloud"], [134, 2, "cloud"], [148, 1, "cloud"], [164, 2, "cloud"],
+      [170, 9, "castle"]
+    ]
+  }
+}
+
+function level4() {
+  // The castle. The floor is broken into a bridge over lava (the lava is drawn
+  // as decor at ground level and the gaps are pits, exactly like the outdoor
+  // courses), Bowser walks the far end of it and the axe sits past him on the
+  // last pillar. Touching the axe ends the game.
+  return {
+    world: "1-4",
+    castle: true,
+    width: 168,
+    ground: [[0, 26], [30, 42], [46, 58], [62, 74], [78, 90], [94, 106], [110, 122], [126, 138], [142, 167]],
+    pipes: [[10, 3], [18, 2]],
+    blocks: [
+      [6, 9, "?"],
+      [14, 9, "B"], [15, 9, "?"], [16, 9, "B"],
+      [34, 9, "B"], [35, 9, "?"], [36, 9, "B"], [37, 9, "M"], [38, 9, "B"],
+      [34, 5, "B"], [35, 5, "B"],
+      [50, 9, "?"], [51, 9, "B"],
+      [66, 5, "B"], [67, 5, "?"], [68, 5, "B"],
+      [82, 9, "b"], [83, 9, "b"],
+      [98, 9, "?"], [99, 9, "B"], [100, 9, "?"],
+      [114, 5, "B"], [115, 5, "B"], [116, 5, "?"],
+      [130, 9, "?"], [131, 9, "B"]
+    ],
+    stairs: [[22, 3, 1], [88, 3, -1], [118, 4, 1]],
+    goombas: [8, 16, 36, 44, 52, 60, 68, 70, 84, 86, 100, 108, 116, 124, 132, 134],
+    coins: [[12, 6], [13, 6], [24, 5], [25, 5], [32, 6], [33, 6], [48, 6],
+            [56, 6], [57, 6], [72, 6], [80, 6], [92, 6], [96, 6], [104, 6],
+            [112, 6], [120, 6], [128, 6], [136, 6], [140, 6], [146, 6]],
+    // Bowser patrols the last stretch of the bridge; the axe is past him.
+    bowser: [156, 12],
+    axe: [161, 12],
+    flag: 164,
+    decor: [
+      [2, 11, "pillar"], [20, 11, "pillar"], [44, 11, "pillar"], [60, 11, "pillar"],
+      [76, 11, "pillar"], [92, 11, "pillar"], [108, 11, "pillar"], [124, 11, "pillar"],
+      [140, 11, "pillar"], [150, 11, "pillar"],
+      // lava at the ground rows, in every gap: no collision, the fall does it
+      [27, 13, "lava"], [28, 13, "lava"], [29, 13, "lava"],
+      [43, 13, "lava"], [44, 13, "lava"], [45, 13, "lava"],
+      [59, 13, "lava"], [60, 13, "lava"], [61, 13, "lava"],
+      [75, 13, "lava"], [76, 13, "lava"], [77, 13, "lava"],
+      [91, 13, "lava"], [92, 13, "lava"], [93, 13, "lava"],
+      [107, 13, "lava"], [108, 13, "lava"], [109, 13, "lava"],
+      [123, 13, "lava"], [124, 13, "lava"], [125, 13, "lava"],
+      [139, 13, "lava"], [140, 13, "lava"], [141, 13, "lava"]
+    ]
+  }
+}
+
+// The courses, in the order they are played. Everything else reads this list,
+// so adding a fifth course is one entry and one function.
+var LEVELS = [level1, level2, level3, level4]
 
 function makeGrid(w) {
   var g = []
@@ -191,11 +351,11 @@ function spawnEnemy(s, col) {
   return e
 }
 
-function spawnCoin(s, col, row) {
+function spawnCoin(s, col, row, type) {
   var it = freeSlot(s.items)
   if (!it) return null
   it.active = true
-  it.type = "coin"
+  it.type = type || "coin"
   it.w = 16
   it.h = 16
   it.x = col * TILE
@@ -251,6 +411,19 @@ function reset(s, keepScore) {
   for (var i = 0; i < def.goombas.length; i++) spawnEnemy(s, def.goombas[i])
   s.items = pool(32, "coin")
   for (var c = 0; c < def.coins.length; c++) spawnCoin(s, def.coins[c][0], def.coins[c][1])
+  // Bowser belongs to the castle course; he patrols a short stretch of the
+  // bridge and is never stompable, exactly like the original. The axe past him
+  // is an ordinary item with its own type — touching it ends the game.
+  s.bowser = null
+  if (def.bowser) {
+    var bw = def.bowser
+    s.bowser = {
+      x: bw[0] * TILE, y: bw[1] * TILE - 14, w: 30, h: 30,
+      vx: -T.enemySpeed * 0.6, phase: 0,
+      minX: (bw[0] - 2) * TILE, maxX: (bw[0] + 2) * TILE
+    }
+  }
+  if (def.axe) spawnCoin(s, def.axe[0], def.axe[1], "axe")
   s.bumps = []
   s.camX = 0
   s.time = START_TIME
@@ -262,13 +435,32 @@ function reset(s, keepScore) {
   s.acc = 0
 }
 
+function startLevel(s, i) {
+  s.index = i
+  s.def = LEVELS[i]()
+  reset(s, true)                // score and lives carry over between courses
+}
+
 function newGame() {
-  var s = { def: level1(), tick: 0 }
+  var s = { def: LEVELS[0](), tick: 0, index: 0, title: true }
   reset(s, false)
+  s.status = "title"            // Toad tells you why you are here; jump starts
+  s.msg = TITLE_MSG
   return s
 }
 
-function restart(s) { reset(s, false) }   // R: fresh run, score cleared
+// The course after this one, or the ending when there is none. Called by the
+// clear animation's timer, and by the axe on the castle course.
+function nextLevel(s) {
+  if (s.index + 1 < LEVELS.length) startLevel(s, s.index + 1)
+  else { s.status = "won"; s.msg = "THANK YOU MARIO" }
+}
+
+function restart(s) {             // R: fresh run at 1-1, score cleared
+  s.def = LEVELS[0]()
+  s.index = 0
+  reset(s, false)
+}
 
 // ---------------------------------------------------------------- physics ----
 
@@ -460,6 +652,7 @@ function substep(s, h, in_) {
       addScore(s, 1000 + Math.round(s.time) * 10)
       s.status = "clear"
       s.msg = "COURSE CLEAR"
+      s.clearTimer = T.clearTime
       m.vx = 0
       return
     }
@@ -499,6 +692,17 @@ function substep(s, h, in_) {
     }
   }
 
+  // ---- bowser ----
+  if (s.bowser) {
+    var b = s.bowser
+    b.x += b.vx * h
+    if (b.x < b.minX) { b.x = b.minX; b.vx = -b.vx }
+    else if (b.x > b.maxX) { b.x = b.maxX; b.vx = -b.vx }
+    b.phase += h
+    // never stompable: touching him anywhere costs a life
+    if (!m.dead && overlap(m, b)) hurt(s)
+  }
+
   // ---- items ----
   for (i = 0; i < s.items.length; i++) {
     it = s.items[i]
@@ -524,6 +728,14 @@ function substep(s, h, in_) {
       }
     }
     if (!m.dead && overlap(m, it)) {
+      if (it.type === "axe") {
+        // the axe cuts the bridge: Bowser goes down and the game is won
+        it.active = false
+        s.bowser = null
+        s.status = "won"
+        s.msg = WON_MSG
+        return
+      }
       if (it.type === "mushroom") { it.active = false; grow(s) }
       else { it.active = false; s.coins++; addScore(s, 200) }
     }
@@ -544,7 +756,18 @@ function substep(s, h, in_) {
 
 function step(s, dt, in_) {
   if (!(dt > 0)) return
-  if (s.status === "gameover" || s.status === "clear") { s.tick++; return }
+  if (s.status === "title") {          // Toad's line: jump to start playing
+    if (in_.jump) s.status = "play"
+    s.tick++
+    return
+  }
+  if (s.status === "clear") {          // the flagpole animation, then the next course
+    s.clearTimer -= dt
+    if (s.clearTimer <= 0) nextLevel(s)
+    s.tick++
+    return
+  }
+  if (s.status === "gameover" || s.status === "won") { s.tick++; return }
   if (dt > 0.25) dt = 0.25
   s.acc += dt
   var guard = 0
@@ -576,7 +799,7 @@ function hud(s) {
     coins: s.coins,
     lives: s.lives,
     time: Math.max(0, Math.ceil(s.time)),
-    world: "1-1",
+    world: s.def.world,
     status: s.status,
     msg: s.msg
   }

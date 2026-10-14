@@ -34,20 +34,40 @@ panel is open and pauses by itself when it closes.
 | `Space` / `↑` / `W` / `X` | jump (hold for a higher jump) |
 | `Shift` | run |
 | `P` | pause |
-| `R` | restart the level |
-| `Esc` | close the panel |
+|| `R` | restart from 1-1 |
+|| `Esc` | close the panel |
 
-## World 1-1
+The game opens on Toad's screen — he tells you where the princess is — and the
+first jump starts the run.
 
-Ground with three pits, four pipes, ? blocks and bricks, free-floating coins,
-twelve goombas, a staircase and a flagpole. Stomp a goomba (+100), collect a
-coin (+200), bump a ? block (+200), break a brick as big Mario (+50), reach the
-flagpole (+1000 and 10 per unit of time left). Three lives; the clock runs at
-2.5 units per second from 400 and an empty clock costs a life.
+## The four courses
 
-The one mushroom block (column 23) makes Mario big: with it he survives one hit
-(shrinking instead of dying) and can break bricks from below. Bumping a coin
+A course is data: `level1()`..`level4()` return ground spans, pipes, blocks,
+stairs, goombas, coins, decor and a flag column, and `LEVELS` is the order they
+are played in. Adding a fifth is one function and one entry in that list.
+Clearing a flagpole runs the clear animation and then hands over to the next
+course with score and lives kept.
+
+| course | what it is |
+|---|---|
+| 1-1 | ground with three pits, four pipes, ? blocks and bricks, twelve goombas, a staircase and the flagpole |
+| 1-2 | pipes and brick corridors (ten pipes, wider block runs, four pits) |
+| 1-3 | the athletic one: ground islands with brick platforms over the gaps for the coins |
+| 1-4 | the castle: a dark hall, lava in the floor gaps, grey pillars, Bowser on the last stretch and **the axe** past him |
+
+Stomp a goomba (+100), collect a coin (+200), bump a ? block (+200), break a
+brick as big Mario (+50), reach the flagpole (+1000 and 10 per unit of time
+left). Three lives; the clock runs at 2.5 units per second from 400 and an empty
+clock costs a life.
+
+The one mushroom block in each course makes Mario big: with it he survives one
+hit (shrinking instead of dying) and can break bricks from below. Bumping a coin
 brick pays a coin; the mushroom slides out of its block before it walks.
+
+**Bowser** patrols two tiles either way on the bridge and cannot be stomped —
+landing on him costs a life like any other touch. Touching the axe past him ends
+the game: Bowser goes down and the princess is rescued (jump on Toad's screen to
+start, `R` to play again from 1-1).
 
 ## Layout of the code
 
@@ -74,7 +94,7 @@ Two things are worth knowing before editing:
 ## Tests
 
 ```bash
-node tests/mario.test.js     # 27 checks: physics, blocks, enemies, death, flag, fuzz, fixed timestep, art
+node tests/mario.test.js     # 33 checks: physics, blocks, enemies, death, flag, courses, fuzz, fixed timestep, art
 node tests/view.test.js      # 3 checks: every live binding in GameView.qml reads `rev`
 ```
 
@@ -87,6 +107,14 @@ moving them, so an enemy you cannot see kills you.
 `Mario.js` carries a `.pragma library` first line for QML; the test strips it and
 loads the file in its own `vm` context, so the exact same game code runs under
 node.
+
+The last check plays the whole game with a small bot — hold right, jump at a
+wall, a hole, an enemy or Bowser — and fails unless the run visits all four
+courses in order and ends on the axe. Enemies are switched off in that check: it
+measures the courses' geometry (holes, platforms, the castle, the axe and the
+hand-over between courses), not the enemy collisions, which have their own
+checks. It is what caught a platform in 1-3 that could not be reached and a
+patrol of Bowser's that covered the axe.
 
 ## Dependencies and assets
 

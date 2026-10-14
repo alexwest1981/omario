@@ -25,6 +25,8 @@ Item {
         if (name === "hill") return Art.hill(false)
         if (name === "bush") return Art.bush()
         if (name === "castle") return Art.castle()
+        if (name === "lava") return Art.lava()
+        if (name === "pillar") return Art.pillar()
         return Art.cloud()
     }
 
@@ -38,7 +40,8 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: Art.C.sky
+            // the castle course is indoors: dark backdrop, lava and pillars
+            color: { view.rev; return view.game.def.castle ? "#181018" : Art.C.sky }
         }
 
         // clouds, half speed
@@ -85,6 +88,8 @@ Item {
 
                 MarioSprite {
                     id: flagSprite
+                    // the castle ends at the axe, not at a flagpole
+                    visible: { view.rev; return !view.game.def.castle }
                     x: view.game.def.flag * 16 - 14
                     y: 5 * 16
                     slots: 4
@@ -160,6 +165,15 @@ Item {
             }
 
             MarioSprite {
+                id: bowserSprite
+                visible: { view.rev; return !!view.game.bowser }
+                x: { view.rev; return view.game.bowser ? Math.round(view.game.bowser.x) : 0 }
+                y: { view.rev; return view.game.bowser ? Math.round(view.game.bowser.y) : 0 }
+                slots: Art.SLOT_COUNT.char
+                art: { view.rev; return view.game.bowser ? Art.bowser(view.game.bowser) : [] }
+            }
+
+            MarioSprite {
                 id: marioSprite
                 slots: Art.SLOT_COUNT.mario
                 x: { view.rev; return Math.round(view.game.mario.x) - 2 }
@@ -171,6 +185,62 @@ Item {
                     return (m.invuln > 0 && Math.floor(m.invuln * 10) % 2 === 1) ? 0.35 : 1
                 }
                 art: { view.rev; return Art.mario(view.game.mario) }
+            }
+        }
+
+        // Toad's story screen and the ending, in their own scaled layer so the
+        // sprites keep the level's pixel size and the text keeps the game's look.
+        Item {
+            id: story
+            anchors.centerIn: parent
+            width: Mario.VIEW_W
+            height: Mario.VIEW_H
+            scale: view.zoom
+            transformOrigin: Item.Center
+
+            Rectangle {
+                anchors.fill: parent
+                color: "#000000"
+                opacity: 0.72
+                visible: { view.rev; return view.game.status === "title" || view.game.status === "won" }
+            }
+
+            MarioSprite {
+                visible: { view.rev; return view.game.status === "title" }
+                x: 112
+                y: 60
+                slots: Art.SLOT_COUNT.char
+                art: Art.char("toad")
+            }
+
+            MarioSprite {
+                visible: { view.rev; return view.game.status === "won" }
+                x: 112
+                y: 60
+                slots: Art.SLOT_COUNT.char
+                art: Art.char("princess")
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: 96
+                visible: { view.rev; return view.game.status === "title" }
+                text: "THE PRINCESS IS IN ANOTHER CASTLE!\n\nBOWSER TOOK HER - GO GET HIM\n\nPRESS SPACE"
+                horizontalAlignment: Text.AlignHCenter
+                color: Art.C.white
+                font.family: "DejaVu Sans Mono"
+                font.pixelSize: 8
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: 96
+                visible: { view.rev; return view.game.status === "won" }
+                text: "THANK YOU MARIO!\n\nYOUR QUEST IS OVER\n\nPRESS R TO PLAY AGAIN"
+                horizontalAlignment: Text.AlignHCenter
+                color: Art.C.white
+                font.family: "DejaVu Sans Mono"
+                font.pixelSize: 8
             }
         }
 

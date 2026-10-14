@@ -150,6 +150,21 @@ Item {
             }
 
             Repeater {
+                model: 4
+
+                delegate: MarioSprite {
+                    required property int index
+                    readonly property var sk: view.game.shots[index]
+
+                    visible: { view.rev; return sk ? sk.active : false }
+                    x: { view.rev; return sk ? Math.round(sk.x) - 3 : 0 }
+                    y: { view.rev; return sk ? Math.round(sk.y) - 3 : 0 }
+                    slots: Art.SLOT_COUNT.shot
+                    art: { view.rev; return sk ? Art.shot(sk) : [] }
+                }
+            }
+
+            Repeater {
                 model: 24
 
                 delegate: MarioSprite {

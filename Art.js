@@ -416,6 +416,39 @@ var SHELL = [
   "................"
 ]
 
+// The fire flower, 16x16 on its block. Two frames so its colours flicker, as in
+// the original.
+var FLOWER = [
+  "................",
+  "....RRRRRRRR....",
+  "...RRRRRRRRRR...",
+  "..RRRRRRRRRRRR..",
+  "..RRRGGGGGGRRR..",
+  "..RRGGGGGGGGRR..",
+  "...RGGYYYYGGR...",
+  "...RGGYYYYGGR...",
+  "....GGGGGGGG....",
+  ".....GGGGGG.....",
+  "......GGGG......",
+  "....GGGGGG......",
+  "...LLGGGG....DD.",
+  "..LLLLGGG...DDD.",
+  "...LLGGGG..DDD..",
+  "....GGGGGG......"
+]
+
+// A fireball: 8x8, two frames, the second one the other way round.
+var FIREBALL = [
+  "..RRRR..",
+  ".RYYYYR.",
+  "RYWWWYYR",
+  "RYWWWYYR",
+  "RYYYYYYR",
+  ".RYYYYR.",
+  "..RRRR..",
+  "........"
+]
+
 // --------------------------------------------------------------- bosses ------
 // Bowser guards the bridge on the castle course. 24 wide, feet on row 23: green
 // body, cream belly, red hair, spiked shell. He is never stompable, so the only
@@ -537,9 +570,22 @@ function pillar() {
           [0, 0, 16, 4, "#5c5c68"], [0, 0, 16, 1, "#7c7c88"], [1, 30, 14, 2, "#34343c"]]
 }
 
+// Fire Mario is the big sprite in the other two colours: hat and shirt white,
+// overalls red. Same rectangles, recoloured once at load.
+function fiery(art) {
+  var out = []
+  for (var i = 0; i < art.length; i++) {
+    var r = art[i], c = r[4]
+    if (c === C.red) c = C.white
+    else if (c === C.blue) c = C.red
+    out.push([r[0], r[1], r[2], r[3], c])
+  }
+  return out
+}
+
 // Precompute every frame once (and its mirror), so drawing never allocates.
 var FRAMES = {}
-var SLOTS = { mario: 0, goomba: 0, item: 0, char: 0, enemy: 0 }
+var SLOTS = { mario: 0, goomba: 0, item: 0, char: 0, enemy: 0, shot: 0 }
 
 function add(key, group, rows, floorRow) {
   var art = pixels(rows, floorRow)
@@ -561,6 +607,12 @@ function buildFrames() {
   add("gWalk2", "goomba", GOOMBA.walk2)
   add("gSquash", "goomba", GOOMBA.squashed)
   add("mushroom", "item", MUSHROOM)
+  add("flower", "item", FLOWER)
+  FRAMES.flower2 = FRAMES.flower.map(function (r) {
+    return [r[0], r[1], r[2], r[3], r[4] === C.white ? C.yellow : r[4] === C.yellow ? C.white : r[4]]
+  })
+  add("shot0", "shot", FIREBALL)
+  add("shot1", "shot", FIREBALL.slice().reverse())
   add("axe", "item", AXE)
   add("kWalk1", "enemy", KOOPA_WALK1, 21)
   add("kWalk2", "enemy", KOOPA_WALK2, 21)
@@ -579,6 +631,13 @@ function buildFrames() {
 }
 buildFrames()
 
+// The fiery big frames, built from the big ones so the poses cannot drift apart.
+var ELD_FRAN = { mbStandFire: "mbStand", mbWalk1Fire: "mbWalk1", mbJumpFire: "mbJump" }
+for (var eld in ELD_FRAN) {
+  FRAMES[eld] = fiery(FRAMES[ELD_FRAN[eld]])
+  FRAMES[eld + "F"] = mirror(FRAMES[eld], WIDTH)
+}
+
 // Visible slot counts: GameView sizes its Repeaters from these, so art can
 // never outgrow its sprite.
 var SLOT_COUNT = SLOTS
@@ -594,6 +653,7 @@ function mario(m) {
     key = big ? (stride ? "mbWalk1" : "mbStand") : (stride ? "msWalk1" : "msWalk2")
   } else key = big ? "mbStand" : "msStand"
   if (m.dead) key = big ? "mbJump" : "msJump"
+  if (big && m.fire) key = key + "Fire"
   return FRAMES[m.facing < 0 ? key + "F" : key] || FRAMES.msStand
 }
 
@@ -625,8 +685,13 @@ function char(name) {
   return FRAMES[name]
 }
 
+function shot(sk) {
+  return FRAMES[(sk.timer || 0) * 8 % 2 < 1 ? "shot0" : "shot1"]
+}
+
 function item(it) {
   if (it.type === "axe") return FRAMES.axe
+  if (it.type === "flower") return FRAMES[(it.phase || 0) * 4 % 2 < 1 ? "flower" : "flower2"]
   if (it.type === "mushroom") return FRAMES.mushroom
   return Math.floor((it.phase || 0) * 4) % 2 ? FRAMES.coin1 : FRAMES.coin0
 }

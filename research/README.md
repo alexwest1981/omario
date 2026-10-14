@@ -79,9 +79,9 @@ reviewer and by hand:
 - **Enemies** — the goomba and the koopa troopa (with the shell state, the kick
   and the sliding shell) exist. Missing: paratroopa, piranha plant, bullet bill,
   podoboo, firebar, hammer bro, latiku and spiny, buzzy beetle.
-- **Power-ups** — only the mushroom. Missing: fire flower, starman, 1-up
-  mushroom, vine, and the fireball weapon itself (no `fire` state, no cooldown,
-  no projectile pool, no bouncing).
+- **Power-ups** — the mushroom, the fire flower and the fireball weapon (fire
+  state, two in flight at once, bouncing, 200 a kill, fire lost before size)
+  exist. Missing: starman, 1-up mushroom, vine.
 - **Blocks** — `bumpBlock()` hardcodes `?`→coin, `M`→mushroom, `b`→coin,
   `B`→break. Missing: per-block content data, hidden/invisible blocks, and
   flower/star/1-up/coin-filled bricks.

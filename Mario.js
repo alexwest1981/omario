@@ -31,6 +31,10 @@ var T = {
   maxFall: 520,
   stompBounce: 215,
   enemySpeed: 34,
+  fireSpeed: 260,   // px/s: a fireball leaves faster than Mario runs
+  fireBounce: 260,  // px/s upward when a fireball touches the ground
+  fireMax: 2,       // fireballs in flight at once, as in the original
+  fireLife: 2.0,    // seconds before one gives up
   shellSpeed: 190,  // px/s: a kicked koopa shell, faster than Mario at a run
   shellH: 16,       // a shell is shorter than the koopa standing up
   kickGrace: 0.2,   // seconds after a stomp when the shell cannot be kicked
@@ -388,6 +392,42 @@ function spawnCoinPop(s, col, row) {
   return it
 }
 
+function spawnFlower(s, col, row) {
+  var it = freeSlot(s.items)
+  if (!it) return null
+  it.active = true
+  it.type = "flower"
+  it.w = 16
+  it.h = 16
+  it.x = col * TILE
+  it.y = row * TILE
+  it.vx = 0
+  it.vy = 0
+  it.emerge = 0.45
+  it.onGround = false
+  return it
+}
+
+// One fireball, if fewer than two are already in the air. It leaves in the
+// direction Mario faces, a little faster than he can run.
+function spawnShot(s) {
+  var m = s.mario
+  var ute = 0
+  for (var i = 0; i < s.shots.length; i++) if (s.shots[i].active) ute++
+  if (ute >= T.fireMax) return null
+  var it = freeSlot(s.shots)
+  if (!it) return null
+  it.active = true
+  it.w = 8
+  it.h = 8
+  it.x = m.facing > 0 ? m.x + m.w : m.x - 8
+  it.y = m.y + (m.big ? 10 : 4)
+  it.vx = (m.facing > 0 ? 1 : -1) * T.fireSpeed + m.vx / 2
+  it.vy = 0
+  it.timer = T.fireLife
+  return it
+}
+
 function spawnMushroom(s, col, row) {
   var it = freeSlot(s.items)
   if (!it) return null
@@ -412,7 +452,7 @@ function reset(s, keepScore) {
   s.render = renderLists(s.grid, def)
   s.mario = {
     x: 3 * TILE, y: (GROUND_ROW - 1) * TILE - 16 + 16, w: 12, h: 16,
-    vx: 0, vy: 0, onGround: false, facing: 1, big: false, dead: false,
+    vx: 0, vy: 0, onGround: false, facing: 1, big: false, fire: false, dead: false,
     invuln: 0, anim: 0, walking: false, jumping: false
   }
   s.mario.y = GROUND_ROW * TILE - s.mario.h
@@ -421,6 +461,8 @@ function reset(s, keepScore) {
   var koopas = def.koopas || []
   for (var k = 0; k < koopas.length; k++) spawnEnemy(s, koopas[k], "koopa")
   s.combo = 0
+  s.shots = pool(4, "shot")
+  s.shotHeld = false
   s.items = pool(32, "coin")
   for (var c = 0; c < def.coins.length; c++) spawnCoin(s, def.coins[c][0], def.coins[c][1])
   // Bowser belongs to the castle course; he patrols a short stretch of the
@@ -448,9 +490,16 @@ function reset(s, keepScore) {
 }
 
 function startLevel(s, i) {
+  var behåll = s.mario ? { big: s.mario.big, fire: s.mario.fire } : null
   s.index = i
   s.def = LEVELS[i]()
   reset(s, true)                // score and lives carry over between courses
+  if (behåll && behåll.big) {   // and so does the power-up, as in the original
+    s.mario.big = true
+    s.mario.h = 30
+    s.mario.y -= 14
+    s.mario.fire = behåll.fire
+  }
 }
 
 function newGame() {
@@ -545,9 +594,22 @@ function stamp(s) {
   else s.lives++
 }
 
+// The flower: it makes small Mario big and big Mario fiery, which is why the
+// same block gives a mushroom to a small Mario and a flower to a big one.
+function blomma(s) {
+  var m = s.mario
+  if (!m.big) grow(s)
+  else if (!m.fire) { m.fire = true; addScore(s, 1000) }
+}
+
 function hurt(s) {
   var m = s.mario
   if (m.dead || m.invuln > 0) return
+  if (m.fire) {                 // fire falls back to big, not to small
+    m.fire = false
+    m.invuln = T.invuln
+    return
+  }
   if (m.big) {
     m.big = false
     m.h = 16
@@ -583,6 +645,7 @@ function bumpBlock(s, x, y) {
   if (ch === "?" || ch === "M") {
     set(s.grid, x, y, "U")
     if (ch === "?") { ta_mynt(s); spawnCoinPop(s, x, y) }
+    else if (s.mario.big) spawnFlower(s, x, y)
     else spawnMushroom(s, x, y)
   } else if (ch === "b") {
     // coin brick: pays a coin and becomes a used block, whatever Mario's size
@@ -660,6 +723,11 @@ function substep(s, h, in_) {
       if (Math.abs(m.vx) <= fr) m.vx = 0
       else m.vx -= (m.vx > 0 ? 1 : -1) * fr
     }
+    // fire Mario shoots with the run button; the edge keeps a held button from
+    // emptying the whole pool at once
+    if (m.fire && in_.run && !s.shotHeld) spawnShot(s)
+    s.shotHeld = in_.run
+
     if (in_.jump && m.onGround) { m.vy = -T.jumpV; m.onGround = false }
     m.jumping = !m.onGround
     m.vy += (in_.jump && m.vy < 0 ? T.gravHold : T.grav) * h
@@ -770,6 +838,33 @@ function substep(s, h, in_) {
     if (!m.dead && overlap(m, b)) hurt(s)
   }
 
+  // ---- fireballs ----
+  for (i = 0; i < s.shots.length; i++) {
+    var sk = s.shots[i]
+    if (!sk.active) continue
+    sk.timer -= h
+    if (sk.timer <= 0) { sk.active = false; continue }
+    sk.vy += T.grav * h
+    if (sk.vy > 420) sk.vy = 420
+    if (moveX(s, sk, sk.vx * h)) { sk.active = false; continue }   // a wall stops it
+    var föll = sk.vy > 0                       // read before moveY, which zeroes it on landing
+    var skr = moveY(s, sk, sk.vy * h)
+    if (skr.ground && föll) sk.vy = -T.fireBounce                  // it bounces
+    if (sk.y > ROWS * TILE + 16) { sk.active = false; continue }
+    for (var q = 0; q < s.ents.length; q++) {
+      var träffad = s.ents[q]
+      if (!träffad.active || träffad.state === "squashed") continue
+      if (overlap(sk, träffad)) {
+        träffad.state = "squashed"
+        träffad.timer = T.squashTime
+        träffad.vx = 0
+        addScore(s, 200)
+        sk.active = false
+        break
+      }
+    }
+  }
+
   // ---- items ----
   for (i = 0; i < s.items.length; i++) {
     it = s.items[i]
@@ -779,13 +874,15 @@ function substep(s, h, in_) {
       it.y += it.vy * h
       it.timer -= h
       if (it.timer <= 0) { it.active = false; continue }
-    } else if (it.type === "mushroom") {
+    } else if (it.type === "mushroom" || it.type === "flower") {
       if (it.emerge > 0) {
-        // slides up out of its block before it starts walking, as in SMB
+        // slides up out of its block; then the mushroom walks and the flower sits
         it.emerge -= h
         it.y -= TILE * h / 0.45
-        if (it.emerge <= 0) it.vx = T.mushroomSpeed
-      } else {
+        if (it.emerge <= 0 && it.type === "mushroom") it.vx = T.mushroomSpeed
+      } else if (it.type !== "flower") {
+        // a flower that has emerged just sits on its block: no walking, no
+        // falling, and no `continue` — it must still reach the pickup below
         it.vy += T.grav * h
         if (it.vy > T.maxFall) it.vy = T.maxFall
         var mdir = it.vx
@@ -804,6 +901,7 @@ function substep(s, h, in_) {
         return
       }
       if (it.type === "mushroom") { it.active = false; grow(s) }
+      else if (it.type === "flower") { it.active = false; blomma(s) }
       else if (it.type === "coin") { it.active = false; ta_mynt(s) }
       // a coinpop is the coin thrown out of a block: the block already paid
     }

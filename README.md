@@ -32,7 +32,7 @@ panel is open and pauses by itself when it closes.
 |---|---|
 | `←` `→` or `A` `D` | walk |
 | `Space` / `↑` / `W` / `X` | jump (hold for a higher jump) |
-| `Shift` | run |
+| `Shift` | run, and throw a fireball when Mario is fiery |
 | `P` | pause |
 || `R` | restart from 1-1 |
 || `Esc` | close the panel |
@@ -76,6 +76,15 @@ The one mushroom block in each course makes Mario big: with it he survives one
 hit (shrinking instead of dying) and can break bricks from below. Bumping a coin
 brick pays a coin; the mushroom slides out of its block before it walks.
 
+The block gives a **mushroom** to a small Mario and a **fire flower** to a big
+one, so the power-up you get depends on what you already are. The flower makes a
+small Mario big and a big Mario **fiery**: he turns white-and-red and throws
+fireballs with the run button, two at most in the air at once. A fireball leaves
+faster than he can run, bounces along the ground, dies against a wall or after
+two seconds, and takes an enemy out for 200. A hit costs fire first, then the
+size, and only then a life; the power-up carries into the next course but not
+through a death.
+
 **Bowser** patrols two tiles either way on the bridge and cannot be stomped —
 landing on him costs a life like any other touch. Touching the axe past him ends
 the game: Bowser goes down and the princess is rescued (jump on Toad's screen to
@@ -106,7 +115,7 @@ Two things are worth knowing before editing:
 ## Tests
 
 ```bash
-node tests/mario.test.js     # 39 checks: physics, blocks, enemies, koopas and shells, scoring, courses, fuzz, fixed timestep, art
+node tests/mario.test.js     # 48 checks: physics, blocks, enemies, koopas and shells, the fire flower and fireballs, scoring, courses, fuzz, fixed timestep, art
 node tests/view.test.js      # 3 checks: every live binding in GameView.qml reads `rev`
 ```
 

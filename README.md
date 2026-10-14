@@ -62,8 +62,11 @@ brick pays a coin; the mushroom slides out of its block before it walks.
 Two things are worth knowing before editing:
 
 * **The game state is one plain JS object.** Mutating it does not notify QML
-  bindings, so every binding that shows live state reads `rev` first (bumped
-  once per step). The HUD goes through `root.hud`.
+  bindings, so every binding that shows live state reads `rev` itself, first
+  thing (bumped once per step). Not through a helper property: a `var` property
+  that wraps game state returns the same object every frame, so QML sees no
+  change and never notifies the binding that uses it. The HUD gets away with
+  `root.hud` only because it builds a fresh object each time.
 * **No canvas and no textures.** Everything is rectangles, so the level can be
   as long as it likes: the static tiles never re-evaluate their art, and only
   `rev`-reading bindings (mario, enemies, items, blocks) do work per frame.
@@ -72,7 +75,14 @@ Two things are worth knowing before editing:
 
 ```bash
 node tests/mario.test.js     # 27 checks: physics, blocks, enemies, death, flag, fuzz, fixed timestep, art
+node tests/view.test.js      # 3 checks: every live binding in GameView.qml reads `rev`
 ```
+
+`view.test.js` guards a trap that has bitten once: a binding whose only
+dependency is an intermediate `var` property never re-evaluates, because the
+property returns the same object every frame and QML then sends no notify. The
+symptom was goombas and coins drawn at their spawn positions while the game kept
+moving them, so an enemy you cannot see kills you.
 
 `Mario.js` carries a `.pragma library` first line for QML; the test strips it and
 loads the file in its own `vm` context, so the exact same game code runs under

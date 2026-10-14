@@ -129,11 +129,16 @@ Item {
 
                 delegate: MarioSprite {
                     required property int index
-                    readonly property var it: { view.rev; return view.game.items[index] }
+                    readonly property var it: view.game.items[index]
 
-                    visible: it ? it.active : false
-                    x: it ? Math.round(it.x) : 0
-                    y: it ? Math.round(it.y) : 0
+                    // Every binding below reads `rev` itself. A binding whose only
+                    // dependency is an intermediate `var` property never re-evaluates:
+                    // the property returns the same object every frame, so QML sees no
+                    // change and sends no notify (the sprite then froze at its spawn
+                    // position while the game kept moving it).
+                    visible: { view.rev; return it ? it.active : false }
+                    x: { view.rev; return it ? Math.round(it.x) : 0 }
+                    y: { view.rev; return it ? Math.round(it.y) : 0 }
                     slots: Art.SLOT_COUNT.item
                     art: { view.rev; return Art.item(it) }
                 }
@@ -144,11 +149,11 @@ Item {
 
                 delegate: MarioSprite {
                     required property int index
-                    readonly property var e: { view.rev; return view.game.ents[index] }
+                    readonly property var e: view.game.ents[index]
 
-                    visible: e ? e.active : false
-                    x: e ? Math.round(e.x) - 1 : 0
-                    y: e ? Math.round(e.y) : 0
+                    visible: { view.rev; return e ? e.active : false }   // see the items delegate
+                    x: { view.rev; return e ? Math.round(e.x) - 1 : 0 }
+                    y: { view.rev; return e ? Math.round(e.y) : 0 }
                     slots: Art.SLOT_COUNT.goomba
                     art: { view.rev; return Art.goomba(e) }
                 }

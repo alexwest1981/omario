@@ -40,20 +40,28 @@ panel is open and pauses by itself when it closes.
 The game opens on Toad's screen — he tells you where the princess is — and the
 first jump starts the run.
 
-## The four courses
+## The thirty-two courses
 
-A course is data: `level1()`..`level4()` return ground spans, pipes, blocks,
+A course is data: `level1()`..`level32()` return ground spans, pipes, blocks,
 stairs, goombas and koopas (column lists), coins, decor and a flag column, and
-`LEVELS` is the order they are played in. Adding a fifth is one function and one entry in that list.
-Clearing a flagpole runs the clear animation and then hands over to the next
-course with score and lives kept.
+`LEVELS` is the order they are played in — eight worlds of four. Adding one is
+a function and an entry in that list. Clearing a flagpole runs the clear
+animation and then hands over to the next course with score and lives kept.
 
-| course | what it is |
+Every world is three courses and a castle. A castle has Bowser on the bridge,
+and the **axe** past him cuts it: that ends the castle the way a flagpole ends
+a course, and on the last course in `LEVELS` it ends the game.
+
+| world | what it is |
 |---|---|
-| 1-1 | ground with three pits, four pipes, ? blocks and bricks, twelve goombas, four koopas, a staircase and the flagpole |
-| 1-2 | pipes and brick corridors (ten pipes, wider block runs, four pits, five koopas) |
-| 1-3 | the athletic one: ground islands with brick platforms over the gaps for the coins, six koopas |
-| 1-4 | the castle: a dark hall, lava in the floor gaps, grey pillars, five koopas, Bowser on the last stretch and **the axe** past him |
+| 1 | the ground courses: 1-1 the original layout, 1-2 pipes and brick corridors, 1-3 the athletic one with ground islands, 1-4 the castle |
+| 2 | more pipes and wider block runs, a brick corridor before the castle |
+| 3 | athletic: floating brick platforms over the gaps, little ground under them |
+| 4 | long staircases and stacked shelves, a lava bridge before the castle |
+| 5 | tight corridors between pipes, coin bricks over the pits |
+| 6 | high shelves and short gaps, the castle rebuilt to 1-4's proportions |
+| 7 | staircase after staircase, and a castle with Bowser mid-bridge |
+| 8 | the hardest of them: stacked shelves, tall pipes, and 8-4 ends the game |
 
 Enemies come in two kinds. A **goomba** is squashed by a stomp. A **koopa** is a
 tile and a half tall and leaves its **shell** behind when stomped; walk into
@@ -123,7 +131,7 @@ Two things are worth knowing before editing:
 ## Tests
 
 ```bash
-node tests/mario.test.js     # 54 checks: physics, blocks, enemies, koopas and shells, the fire flower and fireballs, the starman and the 1-up, scoring, courses, fuzz, fixed timestep, art
+node tests/mario.test.js     # 56 checks: physics, blocks, enemies, koopas and shells, the fire flower and fireballs, the starman and the 1-up, scoring, courses, fuzz, fixed timestep, art
 node tests/view.test.js      # 3 checks: every live binding in GameView.qml reads `rev`
 ```
 
@@ -138,8 +146,8 @@ loads the file in its own `vm` context, so the exact same game code runs under
 node.
 
 The last check plays the whole game with a small bot — hold right, jump at a
-wall, a hole, an enemy or Bowser — and fails unless the run visits all four
-courses in order and ends on the axe. Enemies are switched off in that check: it
+wall, a hole, an enemy or Bowser — and fails unless the run visits all
+thirty-two courses in order and ends on the axe in 8-4. Enemies are switched off in that check: it
 measures the courses' geometry (holes, platforms, the castle, the axe and the
 hand-over between courses), not the enemy collisions, which have their own
 checks. It is what caught a platform in 1-3 that could not be reached and a

@@ -86,9 +86,11 @@ reviewer and by hand:
 - **Lava** — drawn in the castle and lethal only by the fall: the pits under it
   do the killing, exactly as in 1-4 of the original. A lava tile that kills on
   contact is not needed while no course has lava with solid ground beside it.
-- **Blocks** — `bumpBlock()` hardcodes `?`→coin, `M`→mushroom, `b`→coin,
-  `B`→break. Missing: per-block content data, hidden/invisible blocks, and
-  flower/star/1-up/coin-filled bricks.
+- **Blocks** — `?`→coin, `M`→mushroom (or flower, by Mario's size), `*`→starman,
+  `1`→1-up, `b`→coin brick, `B`→breakable brick all exist. Missing: per-block
+  content data, hidden/invisible blocks, and coin-filled bricks.
+- **Courses** — all thirty-two are authored: eight worlds of three courses and a
+  castle each, with the axe ending every castle and the game on the last one.
 - **Hazards and platforms** — nothing but static geometry and pits. Missing:
   moving platforms and lifts with a rider, lava as a collision surface,
   podoboo, firebars, and the castle bridge as a stateful object.

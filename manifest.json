@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.alexwest1981.omario",
   "name": "OmaRio",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "author": "Alex",
   "license": "MIT",
-  "description": "A Super Mario Bros style platformer you can play straight from the bar: four courses, goombas and koopas, mushrooms, fire flowers, a starman, a castle and Bowser.",
+  "description": "A complete Super Mario Bros style game in the bar: eight worlds of four courses, goombas and koopas, mushrooms, fire flowers and starmen, castles, Bowser and the axe.",
   "tags": [
     "game",
     "games",

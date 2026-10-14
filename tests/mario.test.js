@@ -776,14 +776,29 @@ check("the 1-up mushroom is the mushroom with a green cap, and the star flashes"
 
 // ── courses ─────────────────────────────────────────────────────────────────
 
-check("four courses in order, each with its own world label", () => {
-  assert.equal(Mario.LEVELS.length, 4)
-  assert.deepEqual(Mario.LEVELS.map((f) => f().world), ["1-1", "1-2", "1-3", "1-4"])
+check("thirty-two courses in order: eight worlds of four", () => {
+  const labels = []
+  for (let w = 1; w <= 8; w++) for (let c = 1; c <= 4; c++) labels.push(w + "-" + c)
+  assert.equal(Mario.LEVELS.length, 32)
+  assert.deepEqual(Mario.LEVELS.map((f) => f().world), labels)
   const s = fresh()
   assert.equal(Mario.hud(s).world, "1-1")
-  Mario.startLevel(s, 3)
-  assert.equal(Mario.hud(s).world, "1-4")
+  Mario.startLevel(s, 31)
+  assert.equal(Mario.hud(s).world, "8-4")
   assert.ok(s.def.castle, "the last course is the castle")
+})
+
+check("every fourth course is a castle and the last one has the axe", () => {
+  const defs = Mario.LEVELS.map((f) => f())
+  defs.forEach((d, i) => {
+    if (i % 4 === 3) assert.ok(d.castle, d.world + " should be a castle")
+    else assert.ok(!d.castle, d.world + " should not be a castle")
+  })
+  assert.ok(defs[31].axe, "the last course is ended by the axe")
+  defs.forEach((d) => {
+    if (d.castle) assert.ok(d.bowser, d.world + " has no Bowser")
+  })
+  assert.ok(defs.every((d) => d.flag > 0 && d.flag < d.width), "every course has a flagpole inside it")
 })
 
 check("Toad's line holds the game until jump", () => {
@@ -809,15 +824,30 @@ check("the flagpole hands over to the next course", () => {
   assert.equal(Mario.hud(s).lives, 3, "lives carry over")
 })
 
-check("the axe on the castle course ends the game", () => {
+check("the axe on the last course ends the game", () => {
   const s = quiet(fresh())
-  Mario.startLevel(s, 3)
+  Mario.startLevel(s, Mario.LEVELS.length - 1)
   assert.ok(s.bowser, "the castle has Bowser on the bridge")
   assert.ok(s.def.axe[0] * TILE > s.bowser.maxX, "the axe sits past his patrol")
   place(s, s.def.axe[0], 12)
-  until(s, (g) => g.status === "won", IN(), 2)
+  Mario.step(s, DT, IN())
+  assert.equal(s.bowser, null, "Bowser is gone")
+  run(s, Mario.T.clearTime + 0.2, IN())
   assert.equal(s.status, "won", "the axe wins the game")
-  assert.equal(s.bowser, null, "and Bowser is gone")
+  assert.equal(s.msg, Mario.WON_MSG, "with the ending line")
+})
+
+check("an axe in an earlier castle clears that course and hands over", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 11)                            // 3-4: a castle with an axe
+  assert.ok(s.def.castle && s.def.axe, "3-4 is a castle with the axe")
+  place(s, s.def.axe[0], 12)
+  Mario.step(s, DT, IN())
+  assert.equal(s.bowser, null, "Bowser is gone")
+  assert.equal(s.status, "clear", "and the castle is clearing")
+  run(s, Mario.T.clearTime + 0.2, IN())
+  assert.equal(Mario.hud(s).world, "4-1", "the next course starts")
+  assert.notEqual(s.status, "won", "and the game is not over")
 })
 
 check("bowser is not stompable", () => {
@@ -856,16 +886,18 @@ check("every course can be walked to the end", () => {
     return in_
   }
   let t = 0
-  const sedda = []
-  while (t < 400 && s.status !== "won" && s.status !== "gameover") {
+  const seen = []
+  const labels = []
+  for (let w = 1; w <= 8; w++) for (let c = 1; c <= 4; c++) labels.push(w + "-" + c)
+  while (t < 1800 && s.status !== "won" && s.status !== "gameover") {
     for (const e of s.ents) e.active = false
-    if (sedda[sedda.length - 1] !== s.def.world) sedda.push(s.def.world)
+    if (seen[seen.length - 1] !== s.def.world) seen.push(s.def.world)
     Mario.step(s, DT, bot(s))
     t += DT
   }
-  assert.deepEqual(sedda, ["1-1", "1-2", "1-3", "1-4"], "courses visited in order")
+  assert.deepEqual(seen, labels, "courses visited in order")
   assert.equal(s.status, "won", "the run ended as " + s.status + " on course " + s.def.world)
-  assert.ok(t < 200, "the run took " + t.toFixed(1) + "s of game time")
+  assert.ok(t < 1200, "the run took " + t.toFixed(1) + "s of game time")
 })
 
 console.log("\n" + passed + " checks passed")

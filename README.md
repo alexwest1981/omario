@@ -85,6 +85,14 @@ two seconds, and takes an enemy out for 200. A hit costs fire first, then the
 size, and only then a life; the power-up carries into the next course but not
 through a death.
 
+Two more blocks sit in 1-1 next to the mushroom run. One holds a **starman**:
+ten seconds in which nothing can touch Mario — a hit is ignored, everything he
+walks into is taken out on the stomp chain, and even Bowser goes (5000, the one
+thing that takes him down) — shown by a blinking Mario and a flashing star, and
+ended only by the clock. The other holds a **1-up mushroom**: a green-capped
+mushroom worth one extra life and no size. The star skips along faster than a
+mushroom and bounces off the ground like a fireball.
+
 **Bowser** patrols two tiles either way on the bridge and cannot be stomped —
 landing on him costs a life like any other touch. Touching the axe past him ends
 the game: Bowser goes down and the princess is rescued (jump on Toad's screen to
@@ -115,7 +123,7 @@ Two things are worth knowing before editing:
 ## Tests
 
 ```bash
-node tests/mario.test.js     # 48 checks: physics, blocks, enemies, koopas and shells, the fire flower and fireballs, scoring, courses, fuzz, fixed timestep, art
+node tests/mario.test.js     # 54 checks: physics, blocks, enemies, koopas and shells, the fire flower and fireballs, the starman and the 1-up, scoring, courses, fuzz, fixed timestep, art
 node tests/view.test.js      # 3 checks: every live binding in GameView.qml reads `rev`
 ```
 

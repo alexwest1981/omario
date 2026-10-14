@@ -437,6 +437,26 @@ var FLOWER = [
   "....GGGGGG......"
 ]
 
+// The starman, 16x16: the five points and the eyes, flashing yellow and white.
+var STAR = [
+  "................",
+  ".......YY.......",
+  "......YYYY......",
+  "......YYYY......",
+  ".....YYYYYY.....",
+  "YYYYYYYYYYYYYYYY",
+  ".YYYYYYYYYYYYYY.",
+  "..YYYYYYYYYYYY..",
+  "...YKYYYYYYYY...",
+  "...YYKYYYYYYY...",
+  "..YYYYY..YYYYY..",
+  "..YYYY....YYYY..",
+  ".YYYY......YYYY.",
+  ".YYY........YYY.",
+  "..Y..........Y..",
+  "................"
+]
+
 // A fireball: 8x8, two frames, the second one the other way round.
 var FIREBALL = [
   "..RRRR..",
@@ -607,6 +627,13 @@ function buildFrames() {
   add("gWalk2", "goomba", GOOMBA.walk2)
   add("gSquash", "goomba", GOOMBA.squashed)
   add("mushroom", "item", MUSHROOM)
+  add("star", "item", STAR)
+  FRAMES.star2 = FRAMES.star.map(function (r) {
+    return [r[0], r[1], r[2], r[3], r[4] === C.yellow ? C.white : r[4] === C.dark ? C.red : r[4]]
+  })
+  FRAMES.oneup = FRAMES.mushroom.map(function (r) {
+    return [r[0], r[1], r[2], r[3], r[4] === C.red ? C.green : r[4] === C.cream ? C.ltgreen : r[4]]
+  })
   add("flower", "item", FLOWER)
   FRAMES.flower2 = FRAMES.flower.map(function (r) {
     return [r[0], r[1], r[2], r[3], r[4] === C.white ? C.yellow : r[4] === C.yellow ? C.white : r[4]]
@@ -654,6 +681,7 @@ function mario(m) {
   } else key = big ? "mbStand" : "msStand"
   if (m.dead) key = big ? "mbJump" : "msJump"
   if (big && m.fire) key = key + "Fire"
+  if (m.star > 0 && Math.floor(m.star * 12) % 2 === 0) return []
   return FRAMES[m.facing < 0 ? key + "F" : key] || FRAMES.msStand
 }
 
@@ -693,6 +721,8 @@ function item(it) {
   if (it.type === "axe") return FRAMES.axe
   if (it.type === "flower") return FRAMES[(it.phase || 0) * 4 % 2 < 1 ? "flower" : "flower2"]
   if (it.type === "mushroom") return FRAMES.mushroom
+  if (it.type === "oneup") return FRAMES.oneup
+  if (it.type === "star") return FRAMES[(it.phase || 0) * 6 % 2 < 1 ? "star" : "star2"]
   return Math.floor((it.phase || 0) * 4) % 2 ? FRAMES.coin1 : FRAMES.coin0
 }
 
@@ -711,6 +741,8 @@ function tile(ch, top, left) {
             [7, 0, 1, 7, C.brickdark], [3, 8, 1, 8, C.brickdark], [11, 8, 1, 8, C.brickdark]]
   case "?":
   case "M":
+  case "*":
+  case "1":
     return [[0, 0, 16, 16, C.yellow], [1, 1, 14, 14, C.gold], [2, 2, 12, 12, C.yellow],
             [4, 4, 8, 3, C.dark], [10, 5, 3, 4, C.dark], [7, 9, 3, 3, C.dark], [7, 12, 2, 2, C.dark]]
   case "U":

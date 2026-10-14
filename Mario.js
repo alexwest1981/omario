@@ -8,8 +8,8 @@ var ROWS = 15
 var GROUND_ROW = 13        // ground fills rows 13 and 14
 var VIEW_W = 256
 var VIEW_H = 240
-var SOLID = "GBb?MUSP"
-var BLOCKCHARS = "Bb?MU"   // tiles that can change (bumped / used / broken)
+var SOLID = "GBb?M*1USP"
+var BLOCKCHARS = "Bb?M*1U"  // tiles that can change (bumped / used / broken)
 var START_LIVES = 3
 var START_TIME = 400
 var FLAG_TILE = 198
@@ -40,6 +40,9 @@ var T = {
   kickGrace: 0.2,   // seconds after a stomp when the shell cannot be kicked
   squashTime: 0.45,
   mushroomSpeed: 62,
+  starSpeed: 92,    // px/s: the star skips along faster than a mushroom
+  starBounce: 210,  // px/s upward every time it touches the ground
+  starTime: 10.0,   // seconds of invincibility, as in the original
   invuln: 1.6,
   clearTime: 3.0,        // flagpole animation before the next course
   timeRate: 2.5,    // SMB time units per second
@@ -67,7 +70,7 @@ function level1() {
       [80, 5, "B"], [81, 5, "B"], [82, 5, "?"], [83, 5, "B"],
       [91, 5, "B"], [92, 5, "B"], [93, 5, "?"], [94, 5, "B"], [95, 5, "B"],
       [100, 9, "?"], [101, 9, "B"], [102, 9, "B"],
-      [106, 9, "?"], [109, 9, "?"],
+      [106, 9, "?"], [108, 9, "*"], [109, 9, "?"], [110, 9, "1"],
       [118, 9, "b"], [121, 9, "b"],
       [128, 5, "B"], [129, 5, "B"], [130, 5, "M"]
     ],
@@ -428,11 +431,23 @@ function spawnShot(s) {
   return it
 }
 
-function spawnMushroom(s, col, row) {
+function spawnStar(s, col, row) {
+  var it = spawnMushroom(s, col, row, "star")
+  if (!it) return null
+  it.w = 14
+  it.h = 14
+  it.vx = T.starSpeed
+  it.vy = 0
+  return it
+}
+
+function spawnOneUp(s, col, row) { return spawnMushroom(s, col, row, "oneup") }
+
+function spawnMushroom(s, col, row, type) {
   var it = freeSlot(s.items)
   if (!it) return null
   it.active = true
-  it.type = "mushroom"
+  it.type = type || "mushroom"
   it.w = 14
   it.h = 16
   it.x = col * TILE + 1
@@ -453,7 +468,7 @@ function reset(s, keepScore) {
   s.mario = {
     x: 3 * TILE, y: (GROUND_ROW - 1) * TILE - 16 + 16, w: 12, h: 16,
     vx: 0, vy: 0, onGround: false, facing: 1, big: false, fire: false, dead: false,
-    invuln: 0, anim: 0, walking: false, jumping: false
+    star: 0, invuln: 0, anim: 0, walking: false, jumping: false
   }
   s.mario.y = GROUND_ROW * TILE - s.mario.h
   s.ents = pool(24, "goomba")
@@ -594,6 +609,14 @@ function stamp(s) {
   else s.lives++
 }
 
+// The starman: ten seconds of walking through everything. Touching an enemy
+// while starred takes it out instead of hurting, and the ground does not end it
+// — only the clock does.
+function stjarna(s) {
+  s.mario.star = T.starTime
+  addScore(s, 1000)
+}
+
 // The flower: it makes small Mario big and big Mario fiery, which is why the
 // same block gives a mushroom to a small Mario and a flower to a big one.
 function blomma(s) {
@@ -604,7 +627,7 @@ function blomma(s) {
 
 function hurt(s) {
   var m = s.mario
-  if (m.dead || m.invuln > 0) return
+  if (m.dead || m.invuln > 0 || m.star > 0) return
   if (m.fire) {                 // fire falls back to big, not to small
     m.fire = false
     m.invuln = T.invuln
@@ -642,9 +665,11 @@ function grow(s) {
 
 function bumpBlock(s, x, y) {
   var ch = at(s.grid, x, y)
-  if (ch === "?" || ch === "M") {
+  if (ch === "?" || ch === "M" || ch === "*" || ch === "1") {
     set(s.grid, x, y, "U")
     if (ch === "?") { ta_mynt(s); spawnCoinPop(s, x, y) }
+    else if (ch === "*") spawnStar(s, x, y)
+    else if (ch === "1") spawnOneUp(s, x, y)
     else if (s.mario.big) spawnFlower(s, x, y)
     else spawnMushroom(s, x, y)
   } else if (ch === "b") {
@@ -740,6 +765,7 @@ function substep(s, h, in_) {
     if (ry.head) bumpBlock(s, ry.head.x, ry.head.y)
     if (m.y < 0) { m.y = 0; m.vy = 0 }
     if (m.invuln > 0) m.invuln -= h
+    if (m.star > 0) m.star -= h
     m.anim += (Math.abs(m.vx) / 60 + (m.walking ? 0.6 : 0)) * h
 
     if (m.y > ROWS * TILE + 8) { kill(s); return }
@@ -792,6 +818,13 @@ function substep(s, h, in_) {
     }
 
     if (!m.dead && overlap(m, e)) {
+      if (m.star > 0) {                                 // starred: it goes, he does not
+        e.state = "squashed"
+        e.timer = T.squashTime
+        e.vx = 0
+        stamp(s)
+        continue
+      }
       var feet = m.y + m.h
       var stamp_d = m.vy > 0 && feet - e.y < 12
       if (e.state === "shell" || e.state === "sliding") {
@@ -834,8 +867,12 @@ function substep(s, h, in_) {
     if (b.x < b.minX) { b.x = b.minX; b.vx = -b.vx }
     else if (b.x > b.maxX) { b.x = b.maxX; b.vx = -b.vx }
     b.phase += h
-    // never stompable: touching him anywhere costs a life
-    if (!m.dead && overlap(m, b)) hurt(s)
+    // never stompable: touching him anywhere costs a life — unless the star is
+    // running, which is the one thing that takes him out
+    if (!m.dead && overlap(m, b)) {
+      if (m.star > 0) { s.bowser = null; addScore(s, 5000) }
+      else hurt(s)
+    }
   }
 
   // ---- fireballs ----
@@ -869,17 +906,27 @@ function substep(s, h, in_) {
   for (i = 0; i < s.items.length; i++) {
     it = s.items[i]
     if (!it.active) continue
+    it.phase += h
     if (it.type === "coinpop") {
       it.vy += 900 * h
       it.y += it.vy * h
       it.timer -= h
       if (it.timer <= 0) { it.active = false; continue }
-    } else if (it.type === "mushroom" || it.type === "flower") {
+    } else if (it.type === "mushroom" || it.type === "oneup" || it.type === "flower" || it.type === "star") {
       if (it.emerge > 0) {
         // slides up out of its block; then the mushroom walks and the flower sits
         it.emerge -= h
         it.y -= TILE * h / 0.45
-        if (it.emerge <= 0 && it.type === "mushroom") it.vx = T.mushroomSpeed
+        if (it.emerge <= 0 && (it.type === "mushroom" || it.type === "oneup")) it.vx = T.mushroomSpeed
+      } else if (it.type === "star") {
+        it.vy += T.grav * h
+        if (it.vy > T.maxFall) it.vy = T.maxFall
+        var håll = it.vx
+        if (moveX(s, it, it.vx * h)) it.vx = -håll
+        var str = it.vy > 0                             // read before moveY nollställer vy
+        var sr = moveY(s, it, it.vy * h)
+        if (sr.ground && str) it.vy = -T.starBounce
+        if (it.y > ROWS * TILE + 16) { it.active = false; continue }
       } else if (it.type !== "flower") {
         // a flower that has emerged just sits on its block: no walking, no
         // falling, and no `continue` — it must still reach the pickup below
@@ -901,6 +948,8 @@ function substep(s, h, in_) {
         return
       }
       if (it.type === "mushroom") { it.active = false; grow(s) }
+      else if (it.type === "oneup") { it.active = false; s.lives++ }
+      else if (it.type === "star") { it.active = false; stjarna(s) }
       else if (it.type === "flower") { it.active = false; blomma(s) }
       else if (it.type === "coin") { it.active = false; ta_mynt(s) }
       // a coinpop is the coin thrown out of a block: the block already paid

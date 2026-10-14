@@ -683,6 +683,97 @@ check("fire Mario is the big sprite in the other two colours", () => {
   assert.ok(färger.has(MarioArt.C.red) && färger.has(MarioArt.C.white), "hat and overalls swapped colours")
 })
 
+// ── the starman and the 1-up ────────────────────────────────────────────────
+
+check("the star block gives a star that skips and bounces", () => {
+  const s = quiet(fresh())
+  Mario.bumpBlock(s, 108, 9)
+  const st = s.items.find((i) => i.active && i.type === "star")
+  assert.ok(st, "a star came out of the block")
+  run(s, 0.6, IN())
+  assert.ok(Math.abs(st.vx) > Mario.T.mushroomSpeed, "it moves faster than a mushroom")
+  let studsade = false, senaste = st.vy
+  for (let i = 0; i < 240 && st.active && !studsade; i++) {
+    Mario.step(s, DT, IN())
+    if (senaste > 0 && st.vy < 0) studsade = true
+    senaste = st.vy
+  }
+  assert.ok(studsade, "and it bounced on the ground")
+})
+
+check("a star makes Mario untouchable and deadly", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 0)
+  const g = s.ents.find((e) => e.active && e.kind === "goomba")
+  s.ents.forEach((e) => { if (e !== g) e.active = false })
+  const col = clearColumn(s, 55)
+  Mario.stjarna(s)
+  assert.equal(s.mario.star, Mario.T.starTime)
+  const liv = s.lives, läge = s.status
+  Mario.hurt(s)
+  assert.equal(s.lives, liv, "an enemy cannot take a life")
+  assert.equal(s.status, läge, "and the game keeps playing")
+  // gå in i goomban: den dör, Mario mår bra, och kedjan betalar 100
+  const före = s.score
+  g.x = col * TILE + 30
+  g.y = 13 * TILE - g.h
+  g.vx = 0
+  place(s, col, 12)
+  s.mario.star = 5
+  run(s, 0.5, IN({ right: true }))
+  assert.equal(g.state, "squashed", "the goomba went")
+  assert.equal(s.score - före, 100, "and the stomp chain paid the first step")
+  assert.ok(!s.mario.dead, "Mario is fine")
+})
+
+check("the star runs out and then hurts again", () => {
+  const s = quiet(fresh())
+  Mario.stjarna(s)
+  s.mario.star = 0.05
+  run(s, 0.2, IN())
+  assert.equal(s.mario.star <= 0, true, "the clock ran out")
+  const liv = s.lives
+  Mario.hurt(s)
+  assert.equal(s.mario.dead, true, "and a hit kills him again")
+  run(s, Mario.T.deathTime + 0.1, IN())               // livet dras när dödsanimen är slut
+  assert.equal(s.lives, liv - 1, "the life goes at the end of the death animation")
+})
+
+check("the 1-up block gives a life, not a size", () => {
+  const s = quiet(fresh())
+  Mario.bumpBlock(s, 110, 9)
+  const it = s.items.find((i) => i.active && (i.type === "oneup" || i.type === "mushroom"))
+  assert.ok(it, "something came out of the block")
+  assert.equal(it.type, "oneup", "and it is the green one")
+  const liv = s.lives
+  it.emerge = 0
+  place(s, 110, 9)
+  until(s, (g) => !it.active, IN(), 3)
+  assert.equal(s.lives, liv + 1, "one extra life")
+  assert.ok(!s.mario.big, "and Mario is still small")
+})
+
+check("a star takes Bowser out of the castle", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 3)
+  assert.ok(s.bowser, "the castle has a Bowser")
+  s.mario.star = 5
+  s.mario.x = s.bowser.x
+  s.mario.y = s.bowser.y
+  const före = s.score
+  Mario.step(s, DT, IN())
+  assert.equal(s.bowser, null, "he is gone")
+  assert.equal(s.score - före, 5000, "and worth 5000")
+  assert.ok(!s.mario.dead, "Mario walked through him")
+})
+
+check("the 1-up mushroom is the mushroom with a green cap, and the star flashes", () => {
+  const cap = (art) => new Set(art.map((r) => r[4]))
+  assert.ok(cap(MarioArt.item({ type: "oneup" })).has(MarioArt.C.green), "green cap")
+  assert.ok(cap(MarioArt.item({ type: "mushroom" })).has(MarioArt.C.red), "the red one is untouched")
+  assert.notEqual(MarioArt.item({ type: "star", phase: 0 }), MarioArt.item({ type: "star", phase: 0.2 }), "the star flashes")
+})
+
 // ── courses ─────────────────────────────────────────────────────────────────
 
 check("four courses in order, each with its own world label", () => {

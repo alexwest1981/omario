@@ -80,8 +80,12 @@ reviewer and by hand:
   and the sliding shell) exist. Missing: paratroopa, piranha plant, bullet bill,
   podoboo, firebar, hammer bro, latiku and spiny, buzzy beetle.
 - **Power-ups** — the mushroom, the fire flower and the fireball weapon (fire
-  state, two in flight at once, bouncing, 200 a kill, fire lost before size)
-  exist. Missing: starman, 1-up mushroom, vine.
+  state, two in flight at once, bouncing, 200 a kill, fire lost before size),
+  the starman (ten seconds untouchable and deadly, Bowser included) and the
+  1-up mushroom all exist. Missing: the vine.
+- **Lava** — drawn in the castle and lethal only by the fall: the pits under it
+  do the killing, exactly as in 1-4 of the original. A lava tile that kills on
+  contact is not needed while no course has lava with solid ground beside it.
 - **Blocks** — `bumpBlock()` hardcodes `?`→coin, `M`→mushroom, `b`→coin,
   `B`→break. Missing: per-block content data, hidden/invisible blocks, and
   flower/star/1-up/coin-filled bricks.

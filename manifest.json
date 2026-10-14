@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.alexwest1981.omario",
+  "name": "OmaRio",
+  "version": "1.0.0",
+  "author": "Alex",
+  "license": "MIT",
+  "description": "A Super Mario Bros style platformer you can play straight from the bar: run, jump, stomp goombas, break bricks and reach the flagpole.",
+  "tags": [
+    "game",
+    "games",
+    "arcade",
+    "fun",
+    "play"
+  ],
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "OmaRio",
+    "description": "Play a Super Mario Bros style level from the bar",
+    "category": "Games",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

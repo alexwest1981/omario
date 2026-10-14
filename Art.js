@@ -339,6 +339,83 @@ var MUSHROOM = [
   "................"
 ]
 
+// --------------------------------------------------------------- koopa -------
+// Green koopa troopa, 16 wide and a tile and a half tall, plus the shell it
+// leaves behind. Same idiom as the rest: one character per pixel, '.' empty.
+var KOOPA_WALK1 = [
+  "................",
+  ".....GGGGGG.....",
+  "....GGGGGGGG....",
+  "...GGWWGGWWGG...",
+  "...GGWKGGWKGG...",
+  "...GGWWGGWWGG...",
+  "....GGGGGGGG....",
+  ".....YYYYYY.....",
+  "...DDDDDDDDDD...",
+  "..DDLLLLLLLLDD..",
+  "..DDLLDDDDLLDD..",
+  "..DDLLDDDDLLDD..",
+  "..DDLLLLLLLLDD..",
+  "..DDDDDDDDDDDD..",
+  "...DDDDDDDDDD...",
+  "....DDDDDDDD....",
+  "....YYYYYYYY....",
+  "....YY....YY....",
+  "....YY....YY....",
+  "....YY....YY....",
+  "....YY....YY....",
+  "...YYY....YYY...",
+  "................",
+  "................"
+]
+
+var KOOPA_WALK2 = [
+  "................",
+  ".....GGGGGG.....",
+  "....GGGGGGGG....",
+  "...GGWWGGWWGG...",
+  "...GGWKGGWKGG...",
+  "...GGWWGGWWGG...",
+  "....GGGGGGGG....",
+  ".....YYYYYY.....",
+  "...DDDDDDDDDD...",
+  "..DDLLLLLLLLDD..",
+  "..DDLLDDDDLLDD..",
+  "..DDLLDDDDLLDD..",
+  "..DDLLLLLLLLDD..",
+  "..DDDDDDDDDDDD..",
+  "...DDDDDDDDDD...",
+  "....DDDDDDDD....",
+  "....YYYYYYYY....",
+  ".....YY..YY.....",
+  "....YY....YY....",
+  "...YY......YY...",
+  "...YY......YY...",
+  "..YYY......YYY..",
+  "................",
+  "................"
+]
+
+// The shell: what a stomped koopa leaves. Short, and it spins when it slides.
+var SHELL = [
+  "................",
+  "....DDDDDDDD....",
+  "..DDGGGGGGGGDD..",
+  ".DDGGGGGGGGGGDD.",
+  ".DGGGGGGGGGGGGD.",
+  "DDGGGGDDDDGGGGDD",
+  "DDGGGDDDDDDGGGDD",
+  "DDGGGDDDDDDGGGDD",
+  "DDGGGGDDDDGGGGDD",
+  ".DGGGGGGGGGGGGD.",
+  ".DDGGGGGGGGGGDD.",
+  "..DDGGGGGGGGDD..",
+  "...YYYYYYYYYY...",
+  "................",
+  "................",
+  "................"
+]
+
 // --------------------------------------------------------------- bosses ------
 // Bowser guards the bridge on the castle course. 24 wide, feet on row 23: green
 // body, cream belly, red hair, spiked shell. He is never stompable, so the only
@@ -462,7 +539,7 @@ function pillar() {
 
 // Precompute every frame once (and its mirror), so drawing never allocates.
 var FRAMES = {}
-var SLOTS = { mario: 0, goomba: 0, item: 0, char: 0 }
+var SLOTS = { mario: 0, goomba: 0, item: 0, char: 0, enemy: 0 }
 
 function add(key, group, rows, floorRow) {
   var art = pixels(rows, floorRow)
@@ -485,6 +562,9 @@ function buildFrames() {
   add("gSquash", "goomba", GOOMBA.squashed)
   add("mushroom", "item", MUSHROOM)
   add("axe", "item", AXE)
+  add("kWalk1", "enemy", KOOPA_WALK1, 21)
+  add("kWalk2", "enemy", KOOPA_WALK2, 21)
+  add("shell", "enemy", SHELL, 12)
   add("coin0", "item", ["................", "......YYYY......", ".....YYYYYY.....", "....YYOOOOYY....",
                         "....YYOOOOYY....", "....YYOOOOYY....", "....YYOOOOYY....", "....YYOOOOYY....",
                         "....YYOOOOYY....", "....YYOOOOYY....", "....YYOOOOYY....", ".....YYYYYY.....",
@@ -520,6 +600,18 @@ function mario(m) {
 function goomba(e) {
   if (e.state === "squashed") return FRAMES.gSquash
   return Math.floor((e.phase || 0) * 6) % 2 ? FRAMES.gWalk2 : FRAMES.gWalk1
+}
+
+// Every enemy draws through here, so a new kind is one branch.
+function enemy(e) {
+  if (e.kind === "koopa") {
+    if (e.state === "shell" || e.state === "sliding") {
+      if (e.state === "sliding") return Math.floor((e.phase || 0) * 8) % 2 ? FRAMES.shellF : FRAMES.shell
+      return FRAMES.shell
+    }
+    return Math.floor((e.phase || 0) * 6) % 2 ? FRAMES.kWalk2 : FRAMES.kWalk1
+  }
+  return goomba(e)
 }
 
 function bowser(b) {

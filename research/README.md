@@ -49,29 +49,36 @@ track (`T.walkMax` 95, `T.runMax` 152, `T.jumpV` 305, `T.grav` 1500,
 | walk top speed | 90 px/s | 95 px/s |
 | run top speed | 150 px/s | 152 px/s |
 | standing jump height | 4 blocks (64 px) | 4.6 blocks (74 px) |
-| walking jump | 4 blocks + 6 px high, 5 blocks long | 4.6 blocks high, **9.6 blocks long** (154 px) |
-| running jump | 5 blocks + 1 px high, 8.5 blocks long | 4.6 blocks high, **15.4 blocks long** (246 px) |
-| airtime of a running jump | — | 1.62 s |
+| walking jump | 70 px high, 80 px long | 74 px high, 78 px long |
+| running jump | 81 px high, 136 px long | 74 px high, 124 px long |
+| airtime | — | 0.82 s |
 
-Re-measure with `node tests/measure.js` (it builds a flat 120-tile track with no
-obstacles and prints the table above; the numbers in this file are its output).
+Re-measure with `node tests/measure.js`; the numbers above are its output.
 
-So the caps and the jump *height* are close to the original, but the clone
-throws Mario nearly twice as far: the airtime is long, which is why the courses
-have to be wide and why gaps feel floaty. `T.jumpV`, `T.grav` and `T.gravHold`
-are the values to trade against each other to shorten the arc without changing
-the height — the original varies the initial jump speed by running speed
-(-4 px/frame standing and walking, -5 running), which this clone does not do at
-all.
+So the arc is already close: the heights are within 10 px, the walking jump is
+two pixels off in length, and the running jump is nine per cent short. The one
+real difference is that this clone jumps with the same initial speed at every
+walking pace, while the original uses -4 px/frame standing and walking and
+-5 px/frame once Mario is at running speed. Adding that split is worth about
+10 px of height and would need the hold gravity split with it (the original's
+is 0x20 for the slow profiles and 0x28 for the fast ones). Left out on purpose:
+the arc is inside a few per cent of the original at every speed, and a lower
+standing jump puts the four-tile pipes in the courses at risk.
+
+An earlier version of this file claimed a 1.62 s airtime and jumps of 154 and
+246 px. That was the measurement tool's bug, not the game's: it held the jump
+button past the landing, so two hops were measured as one. The tool now
+releases at the apex, which is the same arc in this physics (hold gravity only
+applies while rising) without the second hop.
 
 ## The gap list (verified against this repository)
 
 From `03-entities-gap.md`, whose every identifier was grep-checked by the
 reviewer and by hand:
 
-- **Enemies** — only the goomba exists. Missing: koopa troopa and paratroopa
-  (with the shell state and kicked-shell physics), piranha plant, bullet bill,
-  podoboo, firebar, hammer bro, lakitu and spiny, buzzy beetle.
+- **Enemies** — the goomba and the koopa troopa (with the shell state, the kick
+  and the sliding shell) exist. Missing: paratroopa, piranha plant, bullet bill,
+  podoboo, firebar, hammer bro, latiku and spiny, buzzy beetle.
 - **Power-ups** — only the mushroom. Missing: fire flower, starman, 1-up
   mushroom, vine, and the fireball weapon itself (no `fire` state, no cooldown,
   no projectile pool, no bouncing).
@@ -84,7 +91,8 @@ reviewer and by hand:
 - **Bowser** — ours patrols and hurts on touch. Missing: his jump, his fire
   breath, the five-fireball defeat, what happens when he falls, and the Toad
   chamber after the axe.
-- **Lives** — 100 coins does not grant an extra life yet.
+- **Lives** — 100 coins grants an extra life, and so does the eleventh enemy in
+  one air chain, as in the original.
 
 ## What this corpus does NOT settle — settle it before coding
 

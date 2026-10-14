@@ -31,6 +31,9 @@ var T = {
   maxFall: 520,
   stompBounce: 215,
   enemySpeed: 34,
+  shellSpeed: 190,  // px/s: a kicked koopa shell, faster than Mario at a run
+  shellH: 16,       // a shell is shorter than the koopa standing up
+  kickGrace: 0.2,   // seconds after a stomp when the shell cannot be kicked
   squashTime: 0.45,
   mushroomSpeed: 62,
   invuln: 1.6,
@@ -66,7 +69,8 @@ function level1() {
     ],
     // [column, height, direction] staircases of S blocks
     stairs: [[134, 4, 1], [140, 4, -1], [160, 8, 1]],
-    goombas: [22, 40, 51, 52, 80, 82, 97, 98, 114, 115, 124, 125],
+    goombas: [22, 40, 51, 52, 80, 82, 97, 98, 114, 115, 129, 130, 148, 149, 170, 171],
+    koopas: [30, 60, 105, 130],
     // [column, row] free floating coins
     coins: [[33, 6], [34, 6], [35, 6], [72, 6], [73, 6], [74, 6], [75, 6],
             [86, 8], [87, 8], [88, 8], [136, 6], [137, 6], [138, 6]],
@@ -115,6 +119,7 @@ function level2() {
     ],
     stairs: [[26, 3, -1], [86, 4, 1], [180, 5, 1]],
     goombas: [8, 20, 21, 36, 47, 48, 62, 63, 88, 92, 106, 122, 123, 136, 137, 146, 162, 163, 186],
+    koopas: [20, 50, 78, 120, 160],
     coins: [[4, 6], [5, 6], [34, 8], [35, 8], [36, 8], [50, 6], [66, 6], [67, 6],
             [84, 6], [85, 6], [102, 8], [103, 8], [116, 6], [117, 6], [130, 6],
             [144, 8], [145, 8], [168, 6], [169, 6], [184, 6], [185, 6]],
@@ -169,6 +174,7 @@ function level3() {
     ],
     stairs: [[10, 3, 1], [30, 3, -1], [168, 4, 1]],
     goombas: [20, 31, 44, 57, 68, 81, 96, 109, 121, 133, 146, 158, 174],
+    koopas: [30, 44, 70, 84, 132, 160],
     coins: [[4, 6], [5, 6], [16, 6], [22, 5], [23, 5], [35, 7], [46, 6], [47, 6],
             [58, 7], [59, 7], [70, 7], [71, 7], [83, 7], [84, 7], [94, 5], [95, 5],
             [106, 7], [107, 7], [118, 6], [119, 6], [130, 5], [131, 5], [142, 6],
@@ -210,6 +216,7 @@ function level4() {
     ],
     stairs: [[22, 3, 1], [88, 3, -1], [118, 4, 1]],
     goombas: [8, 16, 36, 44, 52, 60, 68, 70, 84, 86, 100, 108, 116, 124, 132, 134],
+    koopas: [8, 36, 70, 96, 130],
     coins: [[12, 6], [13, 6], [24, 5], [25, 5], [32, 6], [33, 6], [48, 6],
             [56, 6], [57, 6], [72, 6], [80, 6], [92, 6], [96, 6], [104, 6],
             [112, 6], [120, 6], [128, 6], [136, 6], [140, 6], [146, 6]],
@@ -336,18 +343,20 @@ function freeSlot(list) {
   return null
 }
 
-function spawnEnemy(s, col) {
+function spawnEnemy(s, col, kind) {
   var e = freeSlot(s.ents)
   if (!e) return null
   e.active = true
-  e.w = 14
-  e.h = 16
+  e.kind = kind || "goomba"
+  e.w = e.kind === "koopa" ? 13 : 14
+  e.h = e.kind === "koopa" ? 24 : 16     // a koopa is a tile and a half tall
   e.x = col * TILE + 1
   e.y = landingY(s.grid, col, e.h)
   e.vx = -T.enemySpeed
   e.vy = 0
   e.state = "walk"
   e.timer = 0
+  e.kickGrace = 0
   return e
 }
 
@@ -409,6 +418,9 @@ function reset(s, keepScore) {
   s.mario.y = GROUND_ROW * TILE - s.mario.h
   s.ents = pool(24, "goomba")
   for (var i = 0; i < def.goombas.length; i++) spawnEnemy(s, def.goombas[i])
+  var koopas = def.koopas || []
+  for (var k = 0; k < koopas.length; k++) spawnEnemy(s, koopas[k], "koopa")
+  s.combo = 0
   s.items = pool(32, "coin")
   for (var c = 0; c < def.coins.length; c++) spawnCoin(s, def.coins[c][0], def.coins[c][1])
   // Bowser belongs to the castle course; he patrols a short stretch of the
@@ -516,6 +528,23 @@ function moveY(s, a, dy) {
 
 function addScore(s, n) { s.score += n }
 
+// A coin, and the extra life at 100 as in the original.
+function ta_mynt(s) {
+  s.coins++
+  addScore(s, 200)
+  if (s.coins >= 100) { s.coins -= 100; s.lives++ }
+}
+
+// Enemies taken out in one air chain: 100, 200, 400, 500, 800, 1000, 2000,
+// 4000, 5000, 8000 and then an extra life, as in the original. The chain is
+// reset the moment Mario touches the ground.
+var COMBO = [100, 200, 400, 500, 800, 1000, 2000, 4000, 5000, 8000]
+
+function stamp(s) {
+  if (s.combo < COMBO.length) { addScore(s, COMBO[s.combo]); s.combo++ }
+  else s.lives++
+}
+
 function hurt(s) {
   var m = s.mario
   if (m.dead || m.invuln > 0) return
@@ -553,13 +582,12 @@ function bumpBlock(s, x, y) {
   var ch = at(s.grid, x, y)
   if (ch === "?" || ch === "M") {
     set(s.grid, x, y, "U")
-    if (ch === "?") { s.coins++; addScore(s, 200); spawnCoinPop(s, x, y) }
+    if (ch === "?") { ta_mynt(s); spawnCoinPop(s, x, y) }
     else spawnMushroom(s, x, y)
   } else if (ch === "b") {
     // coin brick: pays a coin and becomes a used block, whatever Mario's size
     set(s.grid, x, y, "U")
-    s.coins++
-    addScore(s, 200)
+    ta_mynt(s)                 // 200 points and the coin, the life at 100
     spawnCoinPop(s, x, y)
   } else if (ch === "B") {
     if (s.mario.big) {
@@ -640,6 +668,7 @@ function substep(s, h, in_) {
     moveX(s, m, m.vx * h)
     var ry = moveY(s, m, m.vy * h)
     m.onGround = ry.ground
+    if (m.onGround) s.combo = 0            // the stomp chain ends on the ground
     if (ry.head) bumpBlock(s, ry.head.x, ry.head.y)
     if (m.y < 0) { m.y = 0; m.vy = 0 }
     if (m.invuln > 0) m.invuln -= h
@@ -667,27 +696,65 @@ function substep(s, h, in_) {
       if (e.timer <= 0) e.active = false
       continue
     }
+    if (e.kickGrace > 0) e.kickGrace -= h
     e.vy += T.grav * h
     if (e.vy > T.maxFall) e.vy = T.maxFall
     var edir = e.vx
-    if (moveX(s, e, e.vx * h)) e.vx = -edir
+    if (moveX(s, e, e.vx * h)) e.vx = -edir      // a kicked shell bounces too
     var er = moveY(s, e, e.vy * h)
     e.onGround = er.ground
     e.phase += h
     // turn around at the level edges instead of walking off the map
-    if (e.x < 0) { e.x = 0; e.vx = T.enemySpeed }
-    else if (e.x > s.def.width * TILE - e.w) { e.x = s.def.width * TILE - e.w; e.vx = -T.enemySpeed }
+    if (e.x < 0) { e.x = 0; e.vx = -e.vx }
+    else if (e.x > s.def.width * TILE - e.w) { e.x = s.def.width * TILE - e.w; e.vx = -e.vx }
     if (e.y > ROWS * TILE + 16) { e.active = false; continue }
+
+    // a kicked shell takes out whatever is in front of it
+    if (e.state === "sliding") {
+      for (var j = 0; j < s.ents.length; j++) {           // ponytail: n^2 over <=24 enemies
+        var o = s.ents[j]
+        if (o === e || !o.active || o.state !== "walk") continue
+        if (overlap(e, o)) {
+          o.state = "squashed"
+          o.timer = T.squashTime
+          o.vx = 0
+          addScore(s, 500)
+        }
+      }
+    }
 
     if (!m.dead && overlap(m, e)) {
       var feet = m.y + m.h
-      if (m.vy > 0 && feet - e.y < 12) {
-        e.state = "squashed"
-        e.timer = T.squashTime
-        e.vx = 0
+      var stamp_d = m.vy > 0 && feet - e.y < 12
+      if (e.state === "shell" || e.state === "sliding") {
+        if (stamp_d) {                                    // land on it: it stops
+          if (e.state === "sliding") { e.state = "shell"; e.vx = 0 }
+          e.kickGrace = T.kickGrace
+          m.vy = -T.stompBounce
+          m.onGround = false
+        } else if (e.state === "shell") {
+          // inside the kick grace neither happens: the shell you just stomped
+          // must not hurt you while you are still landing on it
+          if (e.kickGrace <= 0) {                         // walk into it: it goes
+            e.state = "sliding"
+            e.vx = (m.x + m.w / 2 < e.x + e.w / 2) ? T.shellSpeed : -T.shellSpeed
+          }
+        } else hurt(s)                                    // a moving shell hurts
+      } else if (stamp_d) {
+        if (e.kind === "koopa") {                         // into its shell
+          e.state = "shell"
+          e.vx = 0
+          e.kickGrace = T.kickGrace
+          e.y += e.h - T.shellH
+          e.h = T.shellH
+        } else {
+          e.state = "squashed"
+          e.timer = T.squashTime
+          e.vx = 0
+        }
         m.vy = -T.stompBounce
         m.onGround = false
-        addScore(s, 100)
+        stamp(s)
       } else hurt(s)
     }
   }
@@ -737,7 +804,8 @@ function substep(s, h, in_) {
         return
       }
       if (it.type === "mushroom") { it.active = false; grow(s) }
-      else { it.active = false; s.coins++; addScore(s, 200) }
+      else if (it.type === "coin") { it.active = false; ta_mynt(s) }
+      // a coinpop is the coin thrown out of a block: the block already paid
     }
   }
 

@@ -159,8 +159,8 @@ Item {
                     visible: { view.rev; return e ? e.active : false }   // see the items delegate
                     x: { view.rev; return e ? Math.round(e.x) - 1 : 0 }
                     y: { view.rev; return e ? Math.round(e.y) : 0 }
-                    slots: Art.SLOT_COUNT.goomba
-                    art: { view.rev; return Art.goomba(e) }
+                    slots: Art.SLOT_COUNT.enemy
+                    art: { view.rev; return Art.enemy(e) }
                 }
             }
 

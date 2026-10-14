@@ -39,6 +39,21 @@ function until(s, cond, input, maxSeconds = 6) {
 function fresh() { const s = Mario.newGame(); s.status = "play"; return s }
 // Movement tests want a clear stretch of road, not a goomba in the way.
 function quiet(s) { s.ents.forEach((e) => { e.active = false }); return s }
+// A column with clear ground either side of it, so a test that walks Mario into
+// something is not secretly walking him into a pipe.
+function clearColumn(s, from) {
+  for (let c = from; c < s.def.width - 5; c++) {
+    let fri = true
+    for (let d = -3; d <= 4; d++) {
+      const mark = Mario.solidAt(s.grid, c + d, 13)     // ground underneath
+      const luft = !Mario.solidAt(s.grid, c + d, 12)    // and nothing in the way
+      if (!mark || !luft) fri = false
+    }
+    if (fri) return c
+  }
+  throw new Error("no clear column found")
+}
+
 function place(s, col, rowTop) {
   s.mario.x = col * TILE + 2
   s.mario.y = rowTop * TILE
@@ -360,7 +375,9 @@ check("pixel art: every frame is the right size and fits its sprite slots", () =
     const art = MarioArt.FRAMES[key]
     assert.ok(art.length > 0, key + " is empty")
     const CHAR = { toad: 1, princess: 1, bowser: 1 }      // and their F mirrors
-    const group = CHAR[key.replace(/F$/, "")] ? "char" : key.startsWith("mb") || key.startsWith("ms") ? "mario"
+    const base = key.replace(/F$/, "")
+    const group = CHAR[base] ? "char" : (base === "shell" || base.startsWith("kWalk")) ? "enemy"
+      : key.startsWith("mb") || key.startsWith("ms") ? "mario"
       : key.startsWith("g") ? "goomba" : "item"
     assert.ok(art.length <= MarioArt.SLOT_COUNT[group],
       key + " needs " + art.length + " rects but the " + group + " sprite has " + MarioArt.SLOT_COUNT[group])
@@ -375,7 +392,9 @@ check("pixel art: every frame is the right size and fits its sprite slots", () =
   // the maps are hand written: every row must be exactly 16 characters
   const maps = Object.assign({}, MarioArt.MARIO_SMALL, MarioArt.MARIO_BIG, MarioArt.GOOMBA,
                               { mushroom: MarioArt.MUSHROOM, axe: MarioArt.AXE, toad: MarioArt.TOAD,
-                                princess: MarioArt.PRINCESS, bowser: MarioArt.BOWSER })
+                                princess: MarioArt.PRINCESS, bowser: MarioArt.BOWSER,
+                                koopaWalk1: MarioArt.KOOPA_WALK1, koopaWalk2: MarioArt.KOOPA_WALK2,
+                                shell: MarioArt.SHELL })
   for (const [name, rows] of Object.entries(maps)) {
     const w = rows[0].length
     for (const row of rows) assert.equal(row.length, w, name + " has a row of " + row.length + " chars: " + row)
@@ -384,7 +403,10 @@ check("pixel art: every frame is the right size and fits its sprite slots", () =
   assert.equal(MarioArt.MARIO_BIG.stand.length, 32)
   assert.equal(MarioArt.BOWSER[0].length, 24)
   // the characters' feet sit on the row the story screens place them by
-  for (const [key, floor] of [["toad", 21], ["princess", 21], ["bowser", 23]]) {
+  assert.equal(MarioArt.KOOPA_WALK1[0].length, 16)
+  assert.equal(MarioArt.KOOPA_WALK1.length, 24)
+  for (const [key, floor] of [["toad", 21], ["princess", 21], ["bowser", 23],
+                              ["kWalk1", 21], ["shell", 12]]) {
     const low = MarioArt.FRAMES[key].reduce((a, r) => Math.max(a, r[1]), 0)
     assert.equal(low, floor, key + " feet at row " + low + ", expected " + floor)
   }
@@ -406,6 +428,106 @@ check("pixel art: mario picks a different frame for walk, jump and facing", () =
   assert.equal(MarioArt.mario(Object.assign({}, base, { vx: 90, anim: 0.13 })), MarioArt.FRAMES.msWalk1)
   assert.equal(MarioArt.mario(Object.assign({}, base, { facing: -1 })), MarioArt.FRAMES.msStandF)
   assert.equal(MarioArt.mario(Object.assign({}, base, { big: true })), MarioArt.FRAMES.mbStand)
+})
+
+// ── koopas, shells and the chain ────────────────────────────────────────────
+
+check("a koopa is taller than a goomba and walks like one", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 0)
+  const k = s.ents.find((e) => e.active && e.kind === "koopa")
+  assert.ok(k, "no koopa in 1-1")
+  assert.equal(k.h, 24, "a koopa stands a tile and a half tall")
+  assert.equal(k.state, "walk")
+  assert.ok(k.vx < 0, "walks left to begin")
+  run(s, 1, IN())
+  assert.ok(k.y >= 0, "stayed in the level")
+})
+
+check("stomping a koopa leaves a shell that can be kicked", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 0)
+  const k = s.ents.find((e) => e.active && e.kind === "koopa")
+  place(s, Math.floor(k.x / TILE), 11)              // rakt ovanför honom
+  s.mario.vy = 200
+  until(s, (g) => k.state !== "walk", IN(), 2)
+  assert.equal(k.state, "shell", "the stomp leaves a shell")
+  assert.equal(k.vx, 0, "and the shell sits still")
+  assert.equal(k.h, TILE, "the shell is one tile tall")
+  assert.ok(s.score >= 100, "the stomp scored")
+
+  // stå still bredvid tills fristen gått ut, gå sedan in i skalet: spark
+  run(s, Mario.T.kickGrace + 0.05, IN())
+  const col = clearColumn(s, 55)
+  k.x = col * TILE
+  k.y = 13 * TILE - TILE
+  place(s, col - 1, 12)
+  until(s, (g) => k.state === "sliding", IN({ right: true }), 2)
+  assert.equal(k.state, "sliding", "walking into it kicks it")
+  assert.ok(Math.abs(k.vx) > Mario.T.runMax, "a kicked shell is faster than a run")
+})
+
+check("a kicked shell takes out another enemy", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 0)
+  const k = s.ents.find((e) => e.active && e.kind === "koopa")
+  const g = s.ents.find((e) => e.active && e.kind === "goomba")
+  assert.ok(k && g, "need both kinds")
+  // ställ skalet strax vänster om goomban och sparka det åt höger
+  const col = clearColumn(s, 55)
+  k.state = "sliding"
+  k.h = TILE
+  k.x = col * TILE
+  k.y = 13 * TILE - TILE
+  g.x = k.x + 60
+  g.y = 13 * TILE - g.h
+  k.kickGrace = 0
+  k.vx = Mario.T.shellSpeed
+  const före = s.score
+  until(s, (gg) => g.state === "squashed", IN(), 2)
+  assert.equal(g.state, "squashed", "the shell flattened the goomba")
+  assert.equal(s.score - före, 500, "a shell kill is 500")
+})
+
+check("a sliding shell stops under a stomp and hurts from the side", () => {
+  const s = quiet(fresh())
+  Mario.startLevel(s, 0)
+  const k = s.ents.find((e) => e.active && e.kind === "koopa")
+  k.state = "sliding"
+  k.h = TILE
+  k.vx = Mario.T.shellSpeed
+  k.kickGrace = 0
+  place(s, Math.floor(k.x / TILE), 11)
+  s.mario.vy = 200
+  until(s, (gg) => k.state === "shell", IN(), 2)
+  assert.equal(k.state, "shell", "landing on a sliding shell stops it")
+  assert.equal(k.vx, 0)
+})
+
+check("the stomp chain pays the original's sequence and ends in a life", () => {
+  const s = quiet(fresh())
+  s.combo = 0
+  const liv = s.lives
+  for (let i = 0; i < 10; i++) Mario.stamp(s)
+  assert.equal(s.score, 100 + 200 + 400 + 500 + 800 + 1000 + 2000 + 4000 + 5000 + 8000,
+                "the ten first stomps pay the original's table")
+  assert.equal(s.lives, liv, "no life yet")
+  Mario.stamp(s)                                   // elfte: 1-up
+  assert.equal(s.lives, liv + 1, "the eleventh stomp is a life")
+  // och kedjan bryts när Mario rör marken
+  const s2 = quiet(fresh())
+  s2.combo = 4
+  until(s2, (g) => g.mario.onGround, IN(), 1)
+  assert.equal(s2.combo, 0, "touching the ground resets the chain")
+})
+
+check("a hundred coins gives an extra life", () => {
+  const s = quiet(fresh())
+  s.coins = 99
+  const liv = s.lives
+  Mario.bumpBlock(s, 118, 9)                       // myntklossen i 1-1
+  assert.equal(s.coins, 0, "a hundred coins wraps")
+  assert.equal(s.lives, liv + 1, "and pays a life")
 })
 
 // ── courses ─────────────────────────────────────────────────────────────────

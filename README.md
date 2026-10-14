@@ -43,17 +43,29 @@ first jump starts the run.
 ## The four courses
 
 A course is data: `level1()`..`level4()` return ground spans, pipes, blocks,
-stairs, goombas, coins, decor and a flag column, and `LEVELS` is the order they
-are played in. Adding a fifth is one function and one entry in that list.
+stairs, goombas and koopas (column lists), coins, decor and a flag column, and
+`LEVELS` is the order they are played in. Adding a fifth is one function and one entry in that list.
 Clearing a flagpole runs the clear animation and then hands over to the next
 course with score and lives kept.
 
 | course | what it is |
 |---|---|
-| 1-1 | ground with three pits, four pipes, ? blocks and bricks, twelve goombas, a staircase and the flagpole |
-| 1-2 | pipes and brick corridors (ten pipes, wider block runs, four pits) |
-| 1-3 | the athletic one: ground islands with brick platforms over the gaps for the coins |
-| 1-4 | the castle: a dark hall, lava in the floor gaps, grey pillars, Bowser on the last stretch and **the axe** past him |
+| 1-1 | ground with three pits, four pipes, ? blocks and bricks, twelve goombas, four koopas, a staircase and the flagpole |
+| 1-2 | pipes and brick corridors (ten pipes, wider block runs, four pits, five koopas) |
+| 1-3 | the athletic one: ground islands with brick platforms over the gaps for the coins, six koopas |
+| 1-4 | the castle: a dark hall, lava in the floor gaps, grey pillars, five koopas, Bowser on the last stretch and **the axe** past him |
+
+Enemies come in two kinds. A **goomba** is squashed by a stomp. A **koopa** is a
+tile and a half tall and leaves its **shell** behind when stomped; walk into
+that shell and it slides away faster than Mario can run, taking out whatever it
+meets on the way (500 points each), until it hits a wall and comes back. Landing
+on a sliding shell stops it again, and a sliding shell hurts on contact. After a
+stomp the shell is harmless for a fifth of a second, so the shell you just
+landed on does not hurt you while you are still on it.
+
+Scoring follows the original's chain: enemies taken out in one air run pay 100,
+200, 400, 500, 800, 1000, 2000, 4000, 5000 and 8000, and the eleventh is a free
+life. Touching the ground ends the chain. A hundred coins is also a free life.
 
 Stomp a goomba (+100), collect a coin (+200), bump a ? block (+200), break a
 brick as big Mario (+50), reach the flagpole (+1000 and 10 per unit of time
@@ -94,7 +106,7 @@ Two things are worth knowing before editing:
 ## Tests
 
 ```bash
-node tests/mario.test.js     # 33 checks: physics, blocks, enemies, death, flag, courses, fuzz, fixed timestep, art
+node tests/mario.test.js     # 39 checks: physics, blocks, enemies, koopas and shells, scoring, courses, fuzz, fixed timestep, art
 node tests/view.test.js      # 3 checks: every live binding in GameView.qml reads `rev`
 ```
 

@@ -46,8 +46,8 @@ function clearColumn(s, from) {
     let fri = true
     for (let d = -3; d <= 4; d++) {
       const mark = Mario.solidAt(s.grid, c + d, 13)     // ground underneath
-      const luft = !Mario.solidAt(s.grid, c + d, 12)    // and nothing in the way
-      if (!mark || !luft) fri = false
+      const openAir = !Mario.solidAt(s.grid, c + d, 12)    // and nothing in the way
+      if (!mark || !openAir) fri = false
     }
     if (fri) return c
   }
@@ -448,7 +448,7 @@ check("stomping a koopa leaves a shell that can be kicked", () => {
   const s = quiet(fresh())
   Mario.startLevel(s, 0)
   const k = s.ents.find((e) => e.active && e.kind === "koopa")
-  place(s, Math.floor(k.x / TILE), 11)              // rakt ovanför honom
+  place(s, Math.floor(k.x / TILE), 11)              // straight above him
   s.mario.vy = 200
   until(s, (g) => k.state !== "walk", IN(), 2)
   assert.equal(k.state, "shell", "the stomp leaves a shell")
@@ -456,7 +456,7 @@ check("stomping a koopa leaves a shell that can be kicked", () => {
   assert.equal(k.h, TILE, "the shell is one tile tall")
   assert.ok(s.score >= 100, "the stomp scored")
 
-  // stå still bredvid tills fristen gått ut, gå sedan in i skalet: spark
+  // stand still beside it until the grace runs out, then walk into the shell: kick
   run(s, Mario.T.kickGrace + 0.05, IN())
   const col = clearColumn(s, 55)
   k.x = col * TILE
@@ -473,7 +473,7 @@ check("a kicked shell takes out another enemy", () => {
   const k = s.ents.find((e) => e.active && e.kind === "koopa")
   const g = s.ents.find((e) => e.active && e.kind === "goomba")
   assert.ok(k && g, "need both kinds")
-  // ställ skalet strax vänster om goomban och sparka det åt höger
+  // put the shell just left of the goomba and kick it to the right
   const col = clearColumn(s, 55)
   k.state = "sliding"
   k.h = TILE
@@ -483,10 +483,10 @@ check("a kicked shell takes out another enemy", () => {
   g.y = 13 * TILE - g.h
   k.kickGrace = 0
   k.vx = Mario.T.shellSpeed
-  const före = s.score
+  const before = s.score
   until(s, (gg) => g.state === "squashed", IN(), 2)
   assert.equal(g.state, "squashed", "the shell flattened the goomba")
-  assert.equal(s.score - före, 500, "a shell kill is 500")
+  assert.equal(s.score - before, 500, "a shell kill is 500")
 })
 
 check("a sliding shell stops under a stomp and hurts from the side", () => {
@@ -507,14 +507,14 @@ check("a sliding shell stops under a stomp and hurts from the side", () => {
 check("the stomp chain pays the original's sequence and ends in a life", () => {
   const s = quiet(fresh())
   s.combo = 0
-  const liv = s.lives
+  const lives0 = s.lives
   for (let i = 0; i < 10; i++) Mario.stamp(s)
   assert.equal(s.score, 100 + 200 + 400 + 500 + 800 + 1000 + 2000 + 4000 + 5000 + 8000,
                 "the ten first stomps pay the original's table")
-  assert.equal(s.lives, liv, "no life yet")
+  assert.equal(s.lives, lives0, "no life yet")
   Mario.stamp(s)                                   // elfte: 1-up
-  assert.equal(s.lives, liv + 1, "the eleventh stomp is a life")
-  // och kedjan bryts när Mario rör marken
+  assert.equal(s.lives, lives0 + 1, "the eleventh stomp is a life")
+  // and the chain breaks when Mario touches the ground
   const s2 = quiet(fresh())
   s2.combo = 4
   until(s2, (g) => g.mario.onGround, IN(), 1)
@@ -524,10 +524,10 @@ check("the stomp chain pays the original's sequence and ends in a life", () => {
 check("a hundred coins gives an extra life", () => {
   const s = quiet(fresh())
   s.coins = 99
-  const liv = s.lives
+  const lives0 = s.lives
   Mario.bumpBlock(s, 118, 9)                       // myntklossen i 1-1
   assert.equal(s.coins, 0, "a hundred coins wraps")
-  assert.equal(s.lives, liv + 1, "and pays a life")
+  assert.equal(s.lives, lives0 + 1, "and pays a life")
 })
 
 // ── the fire flower ─────────────────────────────────────────────────────────
@@ -550,7 +550,7 @@ check("the flower: small Mario becomes big, big Mario becomes fire", () => {
   const s = quiet(fresh())
   const it = Mario.spawnFlower(s, 20, 5)
   it.emerge = 0
-  place(s, 20, 5)                                   // rakt i blomman
+  place(s, 20, 5)                                   // straight into the flower
   until(s, (g) => !it.active, IN(), 3)
   assert.ok(s.mario.big, "small Mario grew")
   assert.ok(!s.mario.fire, "and is not fiery yet")
@@ -573,25 +573,25 @@ check("the flower sits on its block instead of walking off", () => {
 
 check("fire Mario shoots with the run button, two at most", () => {
   const s = quiet(fresh())
-  place(s, clearColumn(s, 55), 12)                   // en fri sträcka: skotten får plats
+  place(s, clearColumn(s, 55), 12)                   // a clear stretch: the fireballs have room
   Mario.grow(s)
   s.mario.fire = true
   const antal = () => s.shots.filter((k) => k.active).length
-  const steg = (in_) => run(s, 0.06, IN(in_))        // kort nog att skotten hinner leva
+  const press = (in_) => run(s, 0.06, IN(in_))        // short enough that the fireballs stay alive
 
-  steg({ run: true })                                // en kant: ett skott
+  press({ run: true })                                // one edge: one fireball
   assert.equal(antal(), 1, "one fireball")
-  const första = s.shots.find((k) => k.active)
-  steg({ run: true })
-  steg({ run: true })                                // hållen: ingen ny kant
+  const first = s.shots.find((k) => k.active)
+  press({ run: true })
+  press({ run: true })                                // held: no new edge
   assert.equal(antal(), 1, "a held button does not fire again")
-  assert.equal(s.shots.find((k) => k.active), första, "and it is the same fireball")
+  assert.equal(s.shots.find((k) => k.active), first, "and it is the same fireball")
 
-  steg({})                                           // släpp
-  steg({ run: true })                                // ny kant: ett till
+  press({})                                           // release
+  press({ run: true })                                // new edge: one more
   assert.equal(antal(), 2, "a new press fires a second one")
-  steg({})
-  steg({ run: true })
+  press({})
+  press({ run: true })
   assert.equal(antal(), Mario.T.fireMax, "but never more than two")
 })
 
@@ -600,9 +600,9 @@ check("a fireball bounces off the ground and takes out a goomba for 200", () => 
   Mario.startLevel(s, 0)                            // fienderna tillbaka
   const g = s.ents.find((e) => e.active && e.kind === "goomba")
   assert.ok(g, "a goomba to shoot at")
-  s.ents.forEach((e) => { if (e !== g) e.active = false })   // bara den här
+  s.ents.forEach((e) => { if (e !== g) e.active = false })   // only this one
   const col = clearColumn(s, 55)
-  g.x = col * TILE + 90                             // en bit bort: skottet hinner studsa
+  g.x = col * TILE + 90                             // a bit away: the fireball has room to bounce
   g.y = 13 * TILE - g.h
   g.vx = 0
   s.mario.x = col * TILE + 2
@@ -610,39 +610,39 @@ check("a fireball bounces off the ground and takes out a goomba for 200", () => 
   s.mario.facing = 1
   Mario.grow(s)
   s.mario.fire = true
-  const före = s.score
+  const before = s.score
   run(s, 0.06, IN({ run: true }))
   const sk = s.shots.find((k) => k.active)
   assert.ok(sk, "a fireball left Mario")
   assert.ok(sk.vx > Mario.T.runMax, "faster than Mario runs")
-  // lägg skottet rakt på goomban: det är träffen som prövas, inte tur med studsen
+  // put the fireball straight on the goomba: the hit is what is tested, not luck with the bounce
   sk.x = g.x - 4
   sk.y = g.y + 4
   sk.vx = Mario.T.fireSpeed
   sk.vy = 0
   Mario.step(s, DT, IN())
   assert.equal(g.state, "squashed", "the fireball took out the goomba")
-  assert.equal(s.score - före, 200, "a fireball kill is 200")
+  assert.equal(s.score - before, 200, "a fireball kill is 200")
   assert.equal(sk.active, false, "and the fireball is spent")
 })
 
 check("a fireball bounces off the ground and dies at a wall", () => {
   const s = quiet(fresh())
   Mario.startLevel(s, 0)
-  s.ents.forEach((e) => { e.active = false })        // ingen fiende i vägen
+  s.ents.forEach((e) => { e.active = false })        // no enemy in the way
   place(s, clearColumn(s, 55), 12)
   Mario.grow(s)
   s.mario.fire = true
   run(s, 0.06, IN({ run: true }))
   const sk = s.shots.find((k) => k.active)
   assert.ok(sk, "a fireball")
-  let studsade = false, senaste = sk.vy, steg = 0
-  while (sk.active && steg++ < 300) {
+  let bounced = false, prev = sk.vy, press = 0
+  while (sk.active && press++ < 300) {
     Mario.step(s, DT, IN())
-    if (senaste > 0 && sk.vy < 0) studsade = true
-    senaste = sk.vy
+    if (prev > 0 && sk.vy < 0) bounced = true
+    prev = sk.vy
   }
-  assert.ok(studsade, "it bounced on the ground")
+  assert.ok(bounced, "it bounced on the ground")
   assert.ok(!sk.active, "and something eventually stopped it")
 })
 
@@ -667,7 +667,7 @@ check("the power-up carries to the next course but not through a death", () => {
   assert.ok(s.mario.fire && s.mario.big, "the next course starts with the power-up")
   assert.equal(Mario.hud(s).world, "1-2")
   Mario.hurt(s)                                     // tar elden
-  s.mario.invuln = 0                                // och efter skyddet
+  s.mario.invuln = 0                                // and after the grace period
   Mario.hurt(s)                                     // storleken
   assert.ok(!s.mario.big && !s.mario.fire, "a hit takes it away again")
 })
@@ -679,8 +679,8 @@ check("fire Mario is the big sprite in the other two colours", () => {
   assert.notEqual(eld, MarioArt.FRAMES.mbStand)
   assert.equal(MarioArt.mario(Object.assign({}, bas, { fire: true, facing: -1 })), MarioArt.FRAMES.mbStandFireF)
   assert.equal(MarioArt.mario(bas), MarioArt.FRAMES.mbStand, "the plain big sprite is untouched")
-  const färger = new Set(eld.map((r) => r[4]))
-  assert.ok(färger.has(MarioArt.C.red) && färger.has(MarioArt.C.white), "hat and overalls swapped colours")
+  const colors = new Set(eld.map((r) => r[4]))
+  assert.ok(colors.has(MarioArt.C.red) && colors.has(MarioArt.C.white), "hat and overalls swapped colours")
 })
 
 // ── the starman and the 1-up ────────────────────────────────────────────────
@@ -692,13 +692,13 @@ check("the star block gives a star that skips and bounces", () => {
   assert.ok(st, "a star came out of the block")
   run(s, 0.6, IN())
   assert.ok(Math.abs(st.vx) > Mario.T.mushroomSpeed, "it moves faster than a mushroom")
-  let studsade = false, senaste = st.vy
-  for (let i = 0; i < 240 && st.active && !studsade; i++) {
+  let bounced = false, prev = st.vy
+  for (let i = 0; i < 240 && st.active && !bounced; i++) {
     Mario.step(s, DT, IN())
-    if (senaste > 0 && st.vy < 0) studsade = true
-    senaste = st.vy
+    if (prev > 0 && st.vy < 0) bounced = true
+    prev = st.vy
   }
-  assert.ok(studsade, "and it bounced on the ground")
+  assert.ok(bounced, "and it bounced on the ground")
 })
 
 check("a star makes Mario untouchable and deadly", () => {
@@ -707,14 +707,14 @@ check("a star makes Mario untouchable and deadly", () => {
   const g = s.ents.find((e) => e.active && e.kind === "goomba")
   s.ents.forEach((e) => { if (e !== g) e.active = false })
   const col = clearColumn(s, 55)
-  Mario.stjarna(s)
+  Mario.takeStar(s)
   assert.equal(s.mario.star, Mario.T.starTime)
-  const liv = s.lives, läge = s.status
+  const lives0 = s.lives, status0 = s.status
   Mario.hurt(s)
-  assert.equal(s.lives, liv, "an enemy cannot take a life")
-  assert.equal(s.status, läge, "and the game keeps playing")
-  // gå in i goomban: den dör, Mario mår bra, och kedjan betalar 100
-  const före = s.score
+  assert.equal(s.lives, lives0, "an enemy cannot take a life")
+  assert.equal(s.status, status0, "and the game keeps playing")
+  // walk into the goomba: it goes, Mario is fine, and the chain pays 100
+  const before = s.score
   g.x = col * TILE + 30
   g.y = 13 * TILE - g.h
   g.vx = 0
@@ -722,21 +722,21 @@ check("a star makes Mario untouchable and deadly", () => {
   s.mario.star = 5
   run(s, 0.5, IN({ right: true }))
   assert.equal(g.state, "squashed", "the goomba went")
-  assert.equal(s.score - före, 100, "and the stomp chain paid the first step")
+  assert.equal(s.score - before, 100, "and the stomp chain paid the first step")
   assert.ok(!s.mario.dead, "Mario is fine")
 })
 
 check("the star runs out and then hurts again", () => {
   const s = quiet(fresh())
-  Mario.stjarna(s)
+  Mario.takeStar(s)
   s.mario.star = 0.05
   run(s, 0.2, IN())
   assert.equal(s.mario.star <= 0, true, "the clock ran out")
-  const liv = s.lives
+  const lives0 = s.lives
   Mario.hurt(s)
   assert.equal(s.mario.dead, true, "and a hit kills him again")
-  run(s, Mario.T.deathTime + 0.1, IN())               // livet dras när dödsanimen är slut
-  assert.equal(s.lives, liv - 1, "the life goes at the end of the death animation")
+  run(s, Mario.T.deathTime + 0.1, IN())               // the life goes at the end of the death animation
+  assert.equal(s.lives, lives0 - 1, "the life goes at the end of the death animation")
 })
 
 check("the 1-up block gives a life, not a size", () => {
@@ -745,11 +745,11 @@ check("the 1-up block gives a life, not a size", () => {
   const it = s.items.find((i) => i.active && (i.type === "oneup" || i.type === "mushroom"))
   assert.ok(it, "something came out of the block")
   assert.equal(it.type, "oneup", "and it is the green one")
-  const liv = s.lives
+  const lives0 = s.lives
   it.emerge = 0
   place(s, 110, 9)
   until(s, (g) => !it.active, IN(), 3)
-  assert.equal(s.lives, liv + 1, "one extra life")
+  assert.equal(s.lives, lives0 + 1, "one extra life")
   assert.ok(!s.mario.big, "and Mario is still small")
 })
 
@@ -760,10 +760,10 @@ check("a star takes Bowser out of the castle", () => {
   s.mario.star = 5
   s.mario.x = s.bowser.x
   s.mario.y = s.bowser.y
-  const före = s.score
+  const before = s.score
   Mario.step(s, DT, IN())
   assert.equal(s.bowser, null, "he is gone")
-  assert.equal(s.score - före, 5000, "and worth 5000")
+  assert.equal(s.score - before, 5000, "and worth 5000")
   assert.ok(!s.mario.dead, "Mario walked through him")
 })
 
@@ -790,7 +790,7 @@ check("Toad's line holds the game until jump", () => {
   const s = Mario.newGame()
   assert.equal(s.status, "title", "a new game opens on the story screen")
   assert.ok(Mario.hud(s).msg.length > 0, "the story screen has something to say")
-  run(s, 1, IN())                                  // ingenting händer utan hopp
+  run(s, 1, IN())                                  // nothing happens without a jump
   assert.equal(s.status, "title")
   assert.equal(Math.round(s.mario.x), 3 * Mario.TILE)
   run(s, 0.1, IN({ jump: true }))
@@ -824,17 +824,17 @@ check("bowser is not stompable", () => {
   const s = quiet(fresh())
   Mario.startLevel(s, 3)
   const b = s.bowser
-  place(s, Math.floor(b.x / TILE), 11)              // rakt över honom
-  s.mario.vy = 200                                  // på väg ner, som ett stamp
+  place(s, Math.floor(b.x / TILE), 11)              // straight above him
+  s.mario.vy = 200                                  // on the way down, like a stomp
   until(s, (g) => g.status !== "play", IN(), 2)
   assert.equal(s.status, "dying", "landing on Bowser costs a life")
 })
 
 check("every course can be walked to the end", () => {
-  // En enkel bot: håll höger, hoppa vid vägg, hål, fiende och Bowser. Fienderna
-  // är avstängda — det här mäter banornas geometri (hål, avsatser, slottet,
-  // yxan och att banbyte och slut hänger ihop), inte fiendekollisionerna, som
-  // har egna prov ovan.
+  // A plain bot: hold right, jump at a wall, a gap, an enemy and Bowser. The
+  // enemies are switched off — this measures the geometry of the courses (gaps,
+  // ledges, the castle, the axe, and that the course change and the ending hang
+  // together), not the enemy collisions, which have their own checks above.
   const s = Mario.newGame()
   const GR = Mario.GROUND_ROW
   const bot = (g) => {

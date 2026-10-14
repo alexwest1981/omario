@@ -505,15 +505,15 @@ function reset(s, keepScore) {
 }
 
 function startLevel(s, i) {
-  var behåll = s.mario ? { big: s.mario.big, fire: s.mario.fire } : null
+  var kept = s.mario ? { big: s.mario.big, fire: s.mario.fire } : null
   s.index = i
   s.def = LEVELS[i]()
   reset(s, true)                // score and lives carry over between courses
-  if (behåll && behåll.big) {   // and so does the power-up, as in the original
+  if (kept && kept.big) {   // and so does the power-up, as in the original
     s.mario.big = true
     s.mario.h = 30
     s.mario.y -= 14
-    s.mario.fire = behåll.fire
+    s.mario.fire = kept.fire
   }
 }
 
@@ -593,7 +593,7 @@ function moveY(s, a, dy) {
 function addScore(s, n) { s.score += n }
 
 // A coin, and the extra life at 100 as in the original.
-function ta_mynt(s) {
+function takeCoin(s) {
   s.coins++
   addScore(s, 200)
   if (s.coins >= 100) { s.coins -= 100; s.lives++ }
@@ -612,14 +612,14 @@ function stamp(s) {
 // The starman: ten seconds of walking through everything. Touching an enemy
 // while starred takes it out instead of hurting, and the ground does not end it
 // — only the clock does.
-function stjarna(s) {
+function takeStar(s) {
   s.mario.star = T.starTime
   addScore(s, 1000)
 }
 
 // The flower: it makes small Mario big and big Mario fiery, which is why the
 // same block gives a mushroom to a small Mario and a flower to a big one.
-function blomma(s) {
+function takeFlower(s) {
   var m = s.mario
   if (!m.big) grow(s)
   else if (!m.fire) { m.fire = true; addScore(s, 1000) }
@@ -667,7 +667,7 @@ function bumpBlock(s, x, y) {
   var ch = at(s.grid, x, y)
   if (ch === "?" || ch === "M" || ch === "*" || ch === "1") {
     set(s.grid, x, y, "U")
-    if (ch === "?") { ta_mynt(s); spawnCoinPop(s, x, y) }
+    if (ch === "?") { takeCoin(s); spawnCoinPop(s, x, y) }
     else if (ch === "*") spawnStar(s, x, y)
     else if (ch === "1") spawnOneUp(s, x, y)
     else if (s.mario.big) spawnFlower(s, x, y)
@@ -675,7 +675,7 @@ function bumpBlock(s, x, y) {
   } else if (ch === "b") {
     // coin brick: pays a coin and becomes a used block, whatever Mario's size
     set(s.grid, x, y, "U")
-    ta_mynt(s)                 // 200 points and the coin, the life at 100
+    takeCoin(s)                 // 200 points and the coin, the life at 100
     spawnCoinPop(s, x, y)
   } else if (ch === "B") {
     if (s.mario.big) {
@@ -884,17 +884,17 @@ function substep(s, h, in_) {
     sk.vy += T.grav * h
     if (sk.vy > 420) sk.vy = 420
     if (moveX(s, sk, sk.vx * h)) { sk.active = false; continue }   // a wall stops it
-    var föll = sk.vy > 0                       // read before moveY, which zeroes it on landing
+    var wasFalling = sk.vy > 0                       // read before moveY, which zeroes it on landing
     var skr = moveY(s, sk, sk.vy * h)
-    if (skr.ground && föll) sk.vy = -T.fireBounce                  // it bounces
+    if (skr.ground && wasFalling) sk.vy = -T.fireBounce                  // it bounces
     if (sk.y > ROWS * TILE + 16) { sk.active = false; continue }
     for (var q = 0; q < s.ents.length; q++) {
-      var träffad = s.ents[q]
-      if (!träffad.active || träffad.state === "squashed") continue
-      if (overlap(sk, träffad)) {
-        träffad.state = "squashed"
-        träffad.timer = T.squashTime
-        träffad.vx = 0
+      var hit = s.ents[q]
+      if (!hit.active || hit.state === "squashed") continue
+      if (overlap(sk, hit)) {
+        hit.state = "squashed"
+        hit.timer = T.squashTime
+        hit.vx = 0
         addScore(s, 200)
         sk.active = false
         break
@@ -921,9 +921,9 @@ function substep(s, h, in_) {
       } else if (it.type === "star") {
         it.vy += T.grav * h
         if (it.vy > T.maxFall) it.vy = T.maxFall
-        var håll = it.vx
-        if (moveX(s, it, it.vx * h)) it.vx = -håll
-        var str = it.vy > 0                             // read before moveY nollställer vy
+        var flipped = it.vx
+        if (moveX(s, it, it.vx * h)) it.vx = -flipped
+        var str = it.vy > 0                             // read before moveY, which zeroes vy on landing
         var sr = moveY(s, it, it.vy * h)
         if (sr.ground && str) it.vy = -T.starBounce
         if (it.y > ROWS * TILE + 16) { it.active = false; continue }
@@ -949,9 +949,9 @@ function substep(s, h, in_) {
       }
       if (it.type === "mushroom") { it.active = false; grow(s) }
       else if (it.type === "oneup") { it.active = false; s.lives++ }
-      else if (it.type === "star") { it.active = false; stjarna(s) }
-      else if (it.type === "flower") { it.active = false; blomma(s) }
-      else if (it.type === "coin") { it.active = false; ta_mynt(s) }
+      else if (it.type === "star") { it.active = false; takeStar(s) }
+      else if (it.type === "flower") { it.active = false; takeFlower(s) }
+      else if (it.type === "coin") { it.active = false; takeCoin(s) }
       // a coinpop is the coin thrown out of a block: the block already paid
     }
   }

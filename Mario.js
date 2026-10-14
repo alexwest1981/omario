@@ -2031,6 +2031,14 @@ function reset(s, keepScore) {
     }
   }
   if (def.axe) spawnCoin(s, def.axe[0], def.axe[1], "axe")
+  // In a castle the pits are lava, as in the original: its lava is exactly its
+  // gaps, drawn from the course's own geometry instead of listed in the data.
+  if (def.castle) {
+    var lava = []
+    for (var gx = 0; gx < def.width; gx++)
+      if (!solidAt(s.grid, gx, GROUND_ROW)) lava.push([gx, GROUND_ROW, "lava"])
+    def.decor = def.decor.filter(function (d) { return d[2] !== "lava" }).concat(lava)
+  }
   s.bumps = []
   s.camX = 0
   s.time = START_TIME

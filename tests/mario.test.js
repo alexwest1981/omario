@@ -837,6 +837,19 @@ check("the axe on the last course ends the game", () => {
   assert.equal(s.msg, Mario.WON_MSG, "with the ending line")
 })
 
+check("a castle draws lava in its own gaps, and a plain course does not", () => {
+  const castle = quiet(fresh())
+  Mario.startLevel(castle, 31)                       // 8-4
+  const gaps = []
+  for (let c = 0; c < castle.def.width; c++) if (!Mario.solidAt(castle.grid, c, Mario.GROUND_ROW)) gaps.push(c)
+  assert.ok(gaps.length > 0, "the castle has gaps")
+  const lava = castle.def.decor.filter((d) => d[2] === "lava").map((d) => d[0])
+  assert.deepEqual(lava.filter((c) => gaps.includes(c)).length, gaps.length, "every gap has lava")
+  const plain = quiet(fresh())
+  Mario.startLevel(plain, 0)
+  assert.equal(plain.def.decor.filter((d) => d[2] === "lava").length, 0, "the plains course has none")
+})
+
 check("an axe in an earlier castle clears that course and hands over", () => {
   const s = quiet(fresh())
   Mario.startLevel(s, 11)                            // 3-4: a castle with an axe
